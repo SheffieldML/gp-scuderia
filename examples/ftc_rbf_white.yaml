@@ -1,0 +1,18 @@
+# Golden draft: FTC GP regression, RBF + white, no training data embedded
+schema_version: "0.1"
+type: models.gp_regression
+input_dim: 1
+output_dim: 1
+approximation: ftc
+kernel:
+  type: kern.add
+  parts:
+    - type: kern.rbf
+      variance: 1.0
+      lengthscale: 1.0
+      ARD: false
+    - type: kern.white
+      variance: 0.1
+likelihood:
+  type: likelihoods.gaussian
+  variance: 0.1

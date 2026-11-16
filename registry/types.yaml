@@ -1,0 +1,42 @@
+# Portable type registry (schema_version 0.1 draft)
+# Maps wire tags to toolbox-native type identifiers.
+schema_version: "0.1"
+
+types:
+  - portable: kern.rbf
+    gpy_class: GPy.kern.RBF
+    gpc_stream: rbf
+    gpmat_kern: rbf
+    notes: "Wire params: variance, lengthscale (natural); GPc stores inverseWidth"
+
+  - portable: kern.white
+    gpy_class: GPy.kern.White
+    gpc_stream: white
+    gpmat_kern: white
+
+  - portable: kern.bias
+    gpy_class: GPy.kern.Bias
+    gpc_stream: bias
+    gpmat_kern: bias
+
+  - portable: kern.add
+    gpy_class: GPy.kern.Add
+    gpc_stream: cmpnd
+    gpmat_kern: cmpnd
+    notes: "Children under parts[]; order significant"
+
+  - portable: kern.prod
+    gpy_class: GPy.kern.Prod
+    gpc_stream: tensor
+    gpmat_kern: tensor
+    notes: "Confirm GPmat/GPc tensor vs prod naming when expanding registry"
+
+  - portable: likelihoods.gaussian
+    gpy_class: GPy.likelihoods.Gaussian
+    gpc_stream: gaussian
+    gpmat_noise: gaussian
+
+  - portable: models.gp_regression
+    gpy_class: GPy.models.GPRegression
+    gpc_type: gp
+    gpmat_model: gp

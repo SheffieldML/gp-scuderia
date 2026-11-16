@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sheffieldml.github.io/gp-interop/schemas/model.schema.json",
+  "title": "SheffieldML GP model interchange",
+  "description": "Draft 0.1 — YAML primary; this schema validates the shared tree.",
+  "type": "object",
+  "required": ["schema_version", "type", "kernel", "likelihood"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "0.1" },
+    "type": { "type": "string", "minLength": 1 },
+    "input_dim": { "type": "integer", "minimum": 1 },
+    "output_dim": { "type": "integer", "minimum": 1 },
+    "approximation": {
+      "type": "string",
+      "enum": ["ftc", "dtc", "dtcvar", "fitc", "pitc"]
+    },
+    "kernel": { "$ref": "#/$defs/kernelNode" },
+    "likelihood": { "$ref": "#/$defs/likelihoodNode" },
+    "X": { "type": "array" },
+    "Y": { "type": "array" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "kernelNode": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" },
+        "parts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernelNode" }
+        },
+        "variance": { "type": "number" },
+        "lengthscale": { "type": ["number", "array"] },
+        "ARD": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "likelihoodNode": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" },
+        "variance": { "type": "number" }
+      },
+      "additionalProperties": true
+    }
+  }
+}
