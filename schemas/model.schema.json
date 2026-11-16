@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sheffieldml.github.io/gp-interop/schemas/model.schema.json",
+  "$id": "https://sheffieldml.github.io/gp-scuderia/schemas/model.schema.json",
   "title": "SheffieldML GP model interchange",
   "description": "Draft 0.1 — YAML primary; this schema validates the shared tree.",
   "type": "object",

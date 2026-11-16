@@ -1,4 +1,4 @@
-# gp-interop
+# gp-scuderia
 
 Shared **model interchange** for SheffieldML Gaussian process toolboxes ([GPc](https://github.com/SheffieldML/GPc), [GPy](https://github.com/SheffieldML/GPy), [GPmat](https://github.com/SheffieldML/GPmat)).
 
