@@ -1,0 +1,38 @@
+# Golden draft: sparse GP regression (Titsias DTCVAR), 2-D ARD RBF + bias,
+# inducing inputs and training data embedded. Exercises approximation,
+# sparse_linalg, ARD lengthscales, inducing_inputs and data.
+schema_version: "0.1"
+type: models.sparse_gp_regression
+input_dim: 2
+output_dim: 1
+approximation: dtcvar
+sparse_linalg: lq
+inducing_inputs:
+  - [0.0, 0.0]
+  - [1.0, 0.5]
+  - [-1.0, 1.0]
+kernel:
+  type: kern.add
+  parts:
+    - type: kern.rbf
+      variance: 2.0
+      lengthscale: [0.8, 1.5]
+      ARD: true
+    - type: kern.bias
+      variance: 0.5
+likelihood:
+  type: likelihoods.gaussian
+  variance: 0.05
+data:
+  X:
+    - [-1.5, 0.2]
+    - [-0.5, 0.9]
+    - [0.1, -0.3]
+    - [0.9, 0.6]
+    - [1.4, 1.1]
+  Y:
+    - [0.12]
+    - [0.55]
+    - [0.31]
+    - [0.78]
+    - [0.40]

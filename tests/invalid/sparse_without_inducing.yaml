@@ -1,0 +1,6 @@
+# Must be rejected: non-FTC approximation requires inducing_inputs.
+schema_version: "0.1"
+type: models.sparse_gp_regression
+approximation: fitc
+kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+likelihood: {type: likelihoods.gaussian, variance: 0.1}

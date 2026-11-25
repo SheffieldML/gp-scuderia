@@ -2,47 +2,121 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sheffieldml.github.io/gp-scuderia/schemas/model.schema.json",
   "title": "SheffieldML GP model interchange",
-  "description": "Draft 0.1 — YAML primary; this schema validates the shared tree.",
+  "description": "Draft 0.1 — YAML primary; this schema validates the shared tree. Framework-neutral: parameters are natural, positive and untransformed. Extension fields must be prefixed x-.",
   "type": "object",
   "required": ["schema_version", "type", "kernel", "likelihood"],
   "properties": {
     "schema_version": { "type": "string", "const": "0.1" },
-    "type": { "type": "string", "minLength": 1 },
+    "type": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$" },
     "input_dim": { "type": "integer", "minimum": 1 },
     "output_dim": { "type": "integer", "minimum": 1 },
     "approximation": {
       "type": "string",
       "enum": ["ftc", "dtc", "dtcvar", "fitc", "pitc"]
     },
+    "sparse_linalg": {
+      "type": "string",
+      "enum": ["lq", "stable", "legacy"]
+    },
+    "inducing_inputs": { "$ref": "#/$defs/matrix" },
     "kernel": { "$ref": "#/$defs/kernelNode" },
     "likelihood": { "$ref": "#/$defs/likelihoodNode" },
-    "X": { "type": "array" },
-    "Y": { "type": "array" }
+    "data": {
+      "type": "object",
+      "required": ["X", "Y"],
+      "properties": {
+        "X": { "$ref": "#/$defs/matrix" },
+        "Y": { "$ref": "#/$defs/matrix" }
+      },
+      "additionalProperties": false
+    }
   },
-  "additionalProperties": true,
+  "patternProperties": { "^x-": {} },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "required": ["approximation"],
+        "properties": { "approximation": { "enum": ["dtc", "dtcvar", "fitc", "pitc"] } }
+      },
+      "then": { "required": ["inducing_inputs"] }
+    },
+    {
+      "if": { "required": ["sparse_linalg"] },
+      "then": {
+        "required": ["approximation"],
+        "properties": { "approximation": { "enum": ["dtc", "dtcvar", "fitc", "pitc"] } }
+      }
+    }
+  ],
   "$defs": {
+    "matrix": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "number" }
+      }
+    },
+    "positive": { "type": "number", "exclusiveMinimum": 0 },
+    "prior": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
     "kernelNode": {
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "type": "string" },
+        "type": { "type": "string", "pattern": "^kern\\.[a-z0-9_]+$" },
         "parts": {
           "type": "array",
+          "minItems": 1,
           "items": { "$ref": "#/$defs/kernelNode" }
         },
-        "variance": { "type": "number" },
-        "lengthscale": { "type": ["number", "array"] },
-        "ARD": { "type": "boolean" }
+        "variance": { "$ref": "#/$defs/positive" },
+        "lengthscale": {
+          "oneOf": [
+            { "$ref": "#/$defs/positive" },
+            { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/positive" } }
+          ]
+        },
+        "ARD": { "type": "boolean" },
+        "active_dims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "priors": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/prior" }
+        }
       },
-      "additionalProperties": true
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "enum": ["kern.add", "kern.prod"] } }, "required": ["type"] },
+          "then": { "required": ["parts"] }
+        }
+      ]
     },
     "likelihoodNode": {
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "type": "string" },
-        "variance": { "type": "number" }
+        "type": { "type": "string", "pattern": "^likelihoods\\.[a-z0-9_]+$" },
+        "variance": { "$ref": "#/$defs/positive" },
+        "priors": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/prior" }
+        }
       },
+      "patternProperties": { "^x-": {} },
       "additionalProperties": true
     }
   }

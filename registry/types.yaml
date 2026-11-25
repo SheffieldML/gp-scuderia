@@ -1,42 +1,173 @@
 # Portable type registry (schema_version 0.1 draft)
-# Maps wire tags to toolbox-native type identifiers.
+#
+# Maps framework-neutral wire tags to toolbox-native identifiers.
+# The wire tag is the contract; no framework is the reference.
+# Portable tags happen to follow GPy dotted paths because that vocabulary
+# is the most widely recognised, not because GPy semantics are normative.
+#
+# Framework keys: gpy, gpc, gpmat, gpytorch, gpflow, gpjax.
+#   value `null`  -> no native equivalent; adapters must fail loudly.
+#   `verified`    -> false until a golden round-trip exists in examples/.
+#
+# Parameter conventions (wire names are natural, positive, untransformed):
+#   variance      signal variance sigma^2
+#   lengthscale   length scale l (scalar, or list when ARD)
+# Each framework entry may give `params:` mapping wire name -> native
+# attribute and a `transform` describing the conversion from wire to native.
+# Transform tokens: identity | inverse (1/x) | sqrt | square | softplus_inv
+# (native stored value is the inverse-softplus of the wire value).
 schema_version: "0.1"
 
 types:
   - portable: kern.rbf
-    gpy_class: GPy.kern.RBF
-    gpc_stream: rbf
-    gpmat_kern: rbf
-    notes: "Wire params: variance, lengthscale (natural); GPc stores inverseWidth"
+    notes: >
+      Squared-exponential. GPc stores inverseWidth (transform inverse of
+      lengthscale^2 convention: confirm against CIP-0014 table). GPyTorch has
+      no signal variance on RBFKernel; wrap in ScaleKernel. GPc splits ARD
+      into a separate stream type (rbfard); the wire uses the ARD flag.
+    gpy:
+      class: GPy.kern.RBF
+      params: {variance: variance, lengthscale: lengthscale}
+    gpc:
+      stream: rbf
+      stream_ard: rbfard
+      params: {variance: variance, lengthscale: {native: inverseWidth, transform: cip0014}}
+    gpmat:
+      kern: rbf
+      params: {variance: variance, lengthscale: {native: inverseWidth, transform: cip0014}}
+    gpytorch:
+      class: gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel)
+      params: {variance: outputscale, lengthscale: base_kernel.lengthscale}
+    gpflow:
+      class: gpflow.kernels.SquaredExponential
+      params: {variance: variance, lengthscale: lengthscales}
+    gpjax:
+      class: gpjax.kernels.RBF
+      params: {variance: variance, lengthscale: lengthscale}
+    verified: false
+
+  - portable: kern.matern32
+    gpy: {class: GPy.kern.Matern32}
+    gpc: {stream: matern32, stream_ard: matern32ard}
+    gpmat: {kern: matern32}
+    gpytorch: {class: "gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=1.5))"}
+    gpflow: {class: gpflow.kernels.Matern32}
+    gpjax: {class: gpjax.kernels.Matern32}
+    verified: false
+
+  - portable: kern.matern52
+    gpy: {class: GPy.kern.Matern52}
+    gpc: {stream: matern52, stream_ard: matern52ard}
+    gpmat: {kern: matern52}
+    gpytorch: {class: "gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=2.5))"}
+    gpflow: {class: gpflow.kernels.Matern52}
+    gpjax: {class: gpjax.kernels.Matern52}
+    verified: false
 
   - portable: kern.white
-    gpy_class: GPy.kern.White
-    gpc_stream: white
-    gpmat_kern: white
+    notes: >
+      GPyTorch has no white kernel; its noise lives in the likelihood. Adapters
+      must reject kern.white in a GPyTorch model rather than fold it silently
+      into the likelihood.
+    gpy: {class: GPy.kern.White}
+    gpc: {stream: white}
+    gpmat: {kern: white}
+    gpytorch: null
+    gpflow: {class: gpflow.kernels.White}
+    gpjax: {class: gpjax.kernels.White}
+    verified: false
 
   - portable: kern.bias
-    gpy_class: GPy.kern.Bias
-    gpc_stream: bias
-    gpmat_kern: bias
+    gpy: {class: GPy.kern.Bias}
+    gpc: {stream: bias}
+    gpmat: {kern: bias}
+    gpytorch: {class: gpytorch.kernels.ConstantKernel}
+    gpflow: {class: gpflow.kernels.Constant}
+    gpjax: {class: gpjax.kernels.Constant}
+    verified: false
+
+  - portable: kern.linear
+    gpy: {class: GPy.kern.Linear}
+    gpc: {stream: lin, stream_ard: linard}
+    gpmat: {kern: lin}
+    gpytorch: {class: gpytorch.kernels.LinearKernel}
+    gpflow: {class: gpflow.kernels.Linear}
+    gpjax: {class: gpjax.kernels.Linear}
+    verified: false
 
   - portable: kern.add
-    gpy_class: GPy.kern.Add
-    gpc_stream: cmpnd
-    gpmat_kern: cmpnd
-    notes: "Children under parts[]; order significant"
+    notes: "Children under parts[]; order significant for parameter ordering only."
+    gpy: {class: GPy.kern.Add}
+    gpc: {stream: cmpnd}
+    gpmat: {kern: cmpnd}
+    gpytorch: {class: gpytorch.kernels.AdditiveKernel}
+    gpflow: {class: gpflow.kernels.Sum}
+    gpjax: {class: gpjax.kernels.SumKernel}
+    verified: false
 
   - portable: kern.prod
-    gpy_class: GPy.kern.Prod
-    gpc_stream: tensor
-    gpmat_kern: tensor
-    notes: "Confirm GPmat/GPc tensor vs prod naming when expanding registry"
+    notes: >
+      Product over the same inputs. GPc `tensor` is a product over the same
+      inputs; confirm GPmat naming when expanding.
+    gpy: {class: GPy.kern.Prod}
+    gpc: {stream: tensor}
+    gpmat: {kern: tensor}
+    gpytorch: {class: gpytorch.kernels.ProductKernel}
+    gpflow: {class: gpflow.kernels.Product}
+    gpjax: {class: gpjax.kernels.ProductKernel}
+    verified: false
 
   - portable: likelihoods.gaussian
-    gpy_class: GPy.likelihoods.Gaussian
-    gpc_stream: gaussian
-    gpmat_noise: gaussian
+    notes: >
+      Wire parameter is noise variance. GPJax parameterises by standard
+      deviation (obs_stddev): transform sqrt. GPyTorch GaussianLikelihood
+      noise is a variance but is stored through a positive constraint.
+    gpy:
+      class: GPy.likelihoods.Gaussian
+      params: {variance: variance}
+    gpc:
+      stream: gaussian
+      params: {variance: {native: beta, transform: inverse}}
+    gpmat: {noise: gaussian}
+    gpytorch:
+      class: gpytorch.likelihoods.GaussianLikelihood
+      params: {variance: noise}
+    gpflow:
+      class: gpflow.likelihoods.Gaussian
+      params: {variance: variance}
+    gpjax:
+      class: gpjax.likelihoods.Gaussian
+      params: {variance: {native: obs_stddev, transform: sqrt}}
+    verified: false
 
   - portable: models.gp_regression
-    gpy_class: GPy.models.GPRegression
-    gpc_type: gp
-    gpmat_model: gp
+    gpy: {class: GPy.models.GPRegression}
+    gpc: {type: gp, approximation: ftc}
+    gpmat: {model: gp}
+    gpytorch: {class: gpytorch.models.ExactGP}
+    gpflow: {class: gpflow.models.GPR}
+    gpjax: {class: gpjax.gps.ConjugatePosterior}
+    verified: false
+
+  - portable: models.sparse_gp_regression
+    notes: >
+      Inference is selected by `approximation`, not by model class. Native
+      support varies; see approximations: below. Unsupported combinations
+      must raise.
+    gpy: {class: GPy.models.SparseGPRegression}
+    gpc: {type: gp}
+    gpmat: {model: gp}
+    gpytorch: {class: gpytorch.models.ApproximateGP}
+    gpflow: {class: gpflow.models.SGPR}
+    gpjax: {class: gpjax.variational_families.CollapsedVariationalGaussian}
+    verified: false
+
+# Which approximation tags each framework can realise for sparse regression.
+approximations:
+  ftc:    {gpy: true,  gpc: true,  gpmat: true,  gpytorch: true,  gpflow: true,  gpjax: true}
+  dtc:    {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
+  dtcvar: {gpy: true,  gpc: true,  gpmat: true,  gpytorch: true,  gpflow: true,  gpjax: true}
+  fitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
+  pitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
+# Entries for gpytorch/gpflow/gpjax are provisional (unverified) and must be
+# checked against current releases before the schema is tagged stable.

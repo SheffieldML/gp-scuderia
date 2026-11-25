@@ -1,0 +1,5 @@
+# Must be rejected: wire values are natural and positive.
+schema_version: "0.1"
+type: models.gp_regression
+kernel: {type: kern.rbf, variance: -1.0, lengthscale: 1.0}
+likelihood: {type: likelihoods.gaussian, variance: 0.1}

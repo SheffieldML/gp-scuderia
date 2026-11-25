@@ -1,0 +1,6 @@
+# Must be rejected: extension fields need an x- prefix.
+schema_version: "0.1"
+type: models.gp_regression
+mystery: 1
+kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+likelihood: {type: likelihoods.gaussian, variance: 0.1}

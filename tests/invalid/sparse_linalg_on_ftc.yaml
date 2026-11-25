@@ -1,0 +1,7 @@
+# Must be rejected: sparse_linalg only applies to sparse approximations.
+schema_version: "0.1"
+type: models.gp_regression
+approximation: ftc
+sparse_linalg: lq
+kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+likelihood: {type: likelihoods.gaussian, variance: 0.1}
