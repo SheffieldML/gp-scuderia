@@ -21,6 +21,12 @@ The wire carries natural, positive, untransformed values: `variance` is a varian
 | GPflow | softplus-transformed variables | adapters store the constrained value; wire is constrained |
 | GPJax | Gaussian likelihood uses `obs_stddev` | `sqrt` / square |
 
+## Semantics fixed by the format
+
+- **Noise.** The Gram matrix is K(kernel, including any `kern.white`) + `likelihood.variance` on the diagonal. Both add.
+- **Mean.** Zero mean. Adapters for toolboxes that centre data by default (GPmat `bias`) must disable it.
+- **Numerical references.** Goldens carry `x-reference` (GPy-generated log likelihood and predictions, with tolerances). Toolboxes that add jitter to sparse models are covered by the stated tolerances.
+
 ## Approximations
 
 `approximation` is an enumerated tag. A framework that cannot realise a tag must raise, not substitute. `registry/types.yaml` records which frameworks support which tags (provisional for GPyTorch, GPflow, GPJax).
