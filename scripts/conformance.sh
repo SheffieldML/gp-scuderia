@@ -6,6 +6,8 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 GPC_PY=${GPC_PY:-$HOME/SheffieldML/GPc/python}
 PY=${ANACONDA_PY:-/opt/anaconda3/bin/python}
 status=0
+echo "== GPc C++ (CInterchange) =="
+(cd "${GPC_ROOT:-$GPC_PY/..}" && make -s testInterchange >/dev/null && ./testInterchange "$ROOT/examples") || status=1
 echo "== GPc =="
 PYTHONPATH="$GPC_PY:$ROOT/python" "$PY" "$ROOT/scripts/conformance_gpc.py" || status=1
 echo "== GPmat (Octave) =="
