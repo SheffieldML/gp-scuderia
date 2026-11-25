@@ -9,6 +9,13 @@
 #   value `null`  -> no native equivalent; adapters must fail loudly.
 #   `verified`    -> false until a golden round-trip exists in examples/.
 #
+# Verification levels (per entry):
+#   api_checked: date on which class names and parameter names were read from
+#     upstream source (GPyTorch main, GPflow develop, GPJax main). This checks
+#     that the names exist; it does NOT check numerical agreement.
+#   verified: true only once a golden round-trip reproduces log-likelihood and
+#     predictions within tolerance. No entry is verified yet.
+#
 # Parameter conventions (wire names are natural, positive, untransformed):
 #   variance      signal variance sigma^2
 #   lengthscale   length scale l (scalar, or list when ARD)
@@ -44,6 +51,7 @@ types:
     gpjax:
       class: gpjax.kernels.RBF
       params: {variance: variance, lengthscale: lengthscale}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: kern.matern32
@@ -53,6 +61,7 @@ types:
     gpytorch: {class: "gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=1.5))"}
     gpflow: {class: gpflow.kernels.Matern32}
     gpjax: {class: gpjax.kernels.Matern32}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: kern.matern52
@@ -62,6 +71,7 @@ types:
     gpytorch: {class: "gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=2.5))"}
     gpflow: {class: gpflow.kernels.Matern52}
     gpjax: {class: gpjax.kernels.Matern52}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: kern.white
@@ -75,15 +85,23 @@ types:
     gpytorch: null
     gpflow: {class: gpflow.kernels.White}
     gpjax: {class: gpjax.kernels.White}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: kern.bias
+    notes: >
+      GPflow Constant has `variance`; GPyTorch ConstantKernel has a positive
+      `constant`; GPJax Constant has `constant`, an unconstrained Real, so the
+      adapter must reject or clip non-positive values on import. GPyTorch
+      documents ConstantKernel as the prior variance of a constant, matching
+      GPy Bias semantics.
     gpy: {class: GPy.kern.Bias}
     gpc: {stream: bias}
     gpmat: {kern: bias}
-    gpytorch: {class: gpytorch.kernels.ConstantKernel}
-    gpflow: {class: gpflow.kernels.Constant}
-    gpjax: {class: gpjax.kernels.Constant}
+    gpytorch: {class: gpytorch.kernels.ConstantKernel, params: {variance: constant}}
+    gpflow: {class: gpflow.kernels.Constant, params: {variance: variance}}
+    gpjax: {class: gpjax.kernels.Constant, params: {variance: constant}}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: kern.linear
@@ -93,6 +111,7 @@ types:
     gpytorch: {class: gpytorch.kernels.LinearKernel}
     gpflow: {class: gpflow.kernels.Linear}
     gpjax: {class: gpjax.kernels.Linear}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: kern.add
@@ -103,6 +122,7 @@ types:
     gpytorch: {class: gpytorch.kernels.AdditiveKernel}
     gpflow: {class: gpflow.kernels.Sum}
     gpjax: {class: gpjax.kernels.SumKernel}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: kern.prod
@@ -115,6 +135,7 @@ types:
     gpytorch: {class: gpytorch.kernels.ProductKernel}
     gpflow: {class: gpflow.kernels.Product}
     gpjax: {class: gpjax.kernels.ProductKernel}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: likelihoods.gaussian
@@ -138,6 +159,7 @@ types:
     gpjax:
       class: gpjax.likelihoods.Gaussian
       params: {variance: {native: obs_stddev, transform: sqrt}}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: models.gp_regression
@@ -146,28 +168,46 @@ types:
     gpmat: {model: gp}
     gpytorch: {class: gpytorch.models.ExactGP}
     gpflow: {class: gpflow.models.GPR}
-    gpjax: {class: gpjax.gps.ConjugatePosterior}
+    gpjax:
+      class: gpjax.gps.ConjugateModel
+      construct: "gpjax.gps.Prior(mean_function, kernel) * gpjax.likelihoods.Gaussian(num_datapoints, obs_stddev)"
+      notes: "API read from GPJax main (ConjugateModel, built by prior * likelihood). Earlier tagged releases used ConjugatePosterior; pin a version before writing the adapter."
+
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
   - portable: models.sparse_gp_regression
     notes: >
       Inference is selected by `approximation`, not by model class. Native
       support varies; see approximations: below. Unsupported combinations
-      must raise.
+      must raise. GPyTorch has no sparse-regression model class: sparse GP
+      regression is an ExactGP whose covariance is an InducingPointKernel
+      (Titsias bound via an added loss term). By default it also applies a
+      diagonal correction to predictive variances (settings.sgpr_diagonal_correction),
+      which is FITC-like at prediction time, so predictions need not match
+      pure DTCVar; the adapter must record or disable this.
     gpy: {class: GPy.models.SparseGPRegression}
     gpc: {type: gp}
     gpmat: {model: gp}
-    gpytorch: {class: gpytorch.models.ApproximateGP}
-    gpflow: {class: gpflow.models.SGPR}
+    gpytorch:
+      class: gpytorch.models.ExactGP
+      kernel_wrapper: gpytorch.kernels.InducingPointKernel(base_kernel, inducing_points, likelihood)
+    gpflow:
+      class: gpflow.models.SGPR
+      class_fitc: gpflow.models.GPRFITC
     gpjax: {class: gpjax.variational_families.CollapsedVariationalGaussian}
+    api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
 # Which approximation tags each framework can realise for sparse regression.
+# gpflow fitc: gpflow.models.GPRFITC (Snelson & Ghahramani). gpflow dtcvar:
+# gpflow.models.SGPR (Titsias 2009). gpjax dtcvar: CollapsedVariationalGaussian
+# (requires a Gaussian likelihood). gpytorch dtcvar: InducingPointKernel (see
+# prediction caveat above). No class found for dtc or pitc outside GPy/GPc/GPmat.
+# false means "no native class found on 2026-11-25", not "impossible".
 approximations:
   ftc:    {gpy: true,  gpc: true,  gpmat: true,  gpytorch: true,  gpflow: true,  gpjax: true}
   dtc:    {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
   dtcvar: {gpy: true,  gpc: true,  gpmat: true,  gpytorch: true,  gpflow: true,  gpjax: true}
-  fitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
+  fitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: true,  gpjax: false}
   pitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
-# Entries for gpytorch/gpflow/gpjax are provisional (unverified) and must be
-# checked against current releases before the schema is tagged stable.
