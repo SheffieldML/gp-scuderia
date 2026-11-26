@@ -27,7 +27,15 @@ def _kern_from_wire(node, input_dim):
         for p in parts[1:]:
             out = out + p if t == "kern.add" else out * p
         return out
+    if t == "kern.coregionalize":
+        W = np.array(node["W"], float)
+        return GPy.kern.Coregionalize(1, output_dim=node["output_dim"], rank=W.shape[1],
+                                      W=W, kappa=np.array(node["kappa"], float),
+                                      active_dims=node["active_dims"])
     cls = _KERN[t]
+    dims = node.get("active_dims")
+    if dims is not None:
+        input_dim = len(dims)
     kw = {"variance": node["variance"]}
     if t in ("kern.rbf", "kern.matern32", "kern.matern52"):
         ls = node["lengthscale"]
@@ -76,8 +84,16 @@ def from_wire(doc):
     kern = _kern_from_wire(doc["kernel"], d)
     X = np.array(doc["data"]["X"], float)
     Y = np.array(doc["data"]["Y"], float)
-    noise = doc["likelihood"]["variance"]
+    lik = doc["likelihood"]
+    noise = lik["variance"]
     approx = doc.get("approximation", "ftc")
+    if lik["type"] == "likelihoods.mixed_gaussian":
+        if approx != "ftc":
+            raise NotImplementedError("mixed_gaussian with %s" % approx)
+        idx = X[:, lik["output_index_column"]].astype(int)[:, None]
+        mixed = GPy.likelihoods.MixedNoise([GPy.likelihoods.Gaussian(variance=v) for v in noise])
+        return GPy.core.GP(X, Y, kern, mixed, Y_metadata={"output_index": idx},
+                           normalizer=norm, mean_function=mf)
     if approx == "ftc":
         return GPy.models.GPRegression(X, Y, kern, noise_var=noise, normalizer=norm,
                                        mean_function=mf)
@@ -102,16 +118,35 @@ def _kern_to_wire(k, input_dim):
     if isinstance(k, (GPy.kern.Add, GPy.kern.Prod)):
         tag = "kern.add" if isinstance(k, GPy.kern.Add) else "kern.prod"
         return {"type": tag, "parts": [_kern_to_wire(p, input_dim) for p in k.parts]}
+    dims = [int(i) for i in k.active_dims]
+    if isinstance(k, GPy.kern.Coregionalize):
+        return {"type": "kern.coregionalize", "output_dim": int(k.output_dim),
+                "W": np.asarray(k.W.values).tolist(),
+                "kappa": np.asarray(k.kappa.values).tolist(), "active_dims": dims}
     tag = _TAG.get(type(k))
     if tag is None:
         raise WireExportError("unsupported GPy kernel %s" % type(k).__name__)
-    if list(k.active_dims) != list(range(input_dim)):
-        raise WireExportError("active_dims %s are not on the wire" % list(k.active_dims))
     node = {"type": tag, "variance": float(k.variance[0])}
+    if dims != list(range(input_dim)):
+        node["active_dims"] = dims
     if tag in ("kern.rbf", "kern.matern32", "kern.matern52"):
         node["lengthscale"] = [float(v) for v in k.lengthscale] if k.ARD else float(k.lengthscale[0])
         node["ARD"] = bool(k.ARD)
     return node
+
+
+def _index_column(k):
+    """Column carrying the output index: the coregionalize kernel's active dim."""
+    cols = set()
+    def walk(p):
+        if isinstance(p, GPy.kern.Coregionalize):
+            cols.add(int(p.active_dims[0]))
+        for q in getattr(p, "parts", []):
+            walk(q)
+    walk(k)
+    if len(cols) != 1:
+        raise WireExportError("mixed noise needs one coregionalize index column")
+    return cols.pop()
 
 
 def to_wire(m):
@@ -121,7 +156,10 @@ def to_wire(m):
     normalizer, a mean function, an unsupported kernel or inference method,
     several outputs, a non-Gaussian likelihood) raises WireExportError.
     """
-    if not isinstance(m, (GPy.models.GPRegression, GPy.models.SparseGPRegression)):
+    mixed = isinstance(m.likelihood, GPy.likelihoods.MixedNoise)
+    if mixed and type(m) is GPy.core.GP:
+        pass
+    elif not isinstance(m, (GPy.models.GPRegression, GPy.models.SparseGPRegression)):
         raise WireExportError("unsupported GPy model %s" % type(m).__name__)
     norm = getattr(m, "normalizer", None)
     mf = getattr(m, "mean_function", None)
@@ -131,10 +169,10 @@ def to_wire(m):
         raise WireExportError("unsupported normalizer %s" % type(norm).__name__)
     if mf is not None and not isinstance(mf, GPy.mappings.Constant):
         raise WireExportError("unsupported mean function %s" % type(mf).__name__)
-    if not isinstance(m.likelihood, GPy.likelihoods.Gaussian):
+    if not mixed and not isinstance(m.likelihood, GPy.likelihoods.Gaussian):
         raise WireExportError("non-Gaussian likelihood")
     if m.Y.shape[1] != 1:
-        raise WireExportError("multi-output models are not yet on the wire")
+        raise WireExportError("only one output column is on the wire (stack outputs with an index column)")
     d = m.input_dim
     doc = {"schema_version": "0.1", "input_dim": d, "output_dim": 1}
     if isinstance(m, GPy.models.SparseGPRegression):
@@ -150,8 +188,15 @@ def to_wire(m):
     else:
         doc.update(type="models.gp_regression", approximation="ftc")
     doc["kernel"] = _kern_to_wire(m.kern, d)
-    doc["likelihood"] = {"type": "likelihoods.gaussian",
-                         "variance": float(m.likelihood.variance[0])}
+    if mixed:
+        gl = m.likelihood.likelihoods_list
+        col = _index_column(m.kern)
+        doc["likelihood"] = {"type": "likelihoods.mixed_gaussian",
+                             "variance": [float(g.variance[0]) for g in gl],
+                             "output_index_column": col}
+    else:
+        doc["likelihood"] = {"type": "likelihoods.gaussian",
+                             "variance": float(m.likelihood.variance[0])}
     Y = np.asarray(m.Y)  # GPy keeps the original-scale Y; the normalized copy is Y_normalized
     if norm:
         doc["normalizer"] = {"type": "normalizer.standardize",
@@ -166,7 +211,11 @@ def reference(doc, Xnew):
     """Compute log-likelihood and predictive mean/variance for doc at Xnew."""
     m = from_wire(doc)
     Xnew = np.array(Xnew, float)
-    mean, var = m.predict(Xnew)
+    meta = None
+    lik = doc["likelihood"]
+    if lik["type"] == "likelihoods.mixed_gaussian":
+        meta = {"output_index": Xnew[:, lik["output_index_column"]].astype(int)[:, None]}
+    mean, var = m.predict(Xnew, Y_metadata=meta)
     ll = float(m.log_likelihood())
     if doc.get("normalizer", {}).get("type") == "normalizer.standardize":
         # GPy scores the standardized targets; the wire reports log p(y).

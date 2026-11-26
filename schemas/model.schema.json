@@ -125,6 +125,9 @@
           ]
         },
         "ARD": { "type": "boolean" },
+        "output_dim": { "type": "integer", "minimum": 1 },
+        "W": { "$ref": "#/$defs/matrix" },
+        "kappa": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/positive" } },
         "active_dims": {
           "type": "array",
           "minItems": 1,
@@ -141,6 +144,14 @@
         {
           "if": { "properties": { "type": { "enum": ["kern.add", "kern.prod"] } }, "required": ["type"] },
           "then": { "required": ["parts"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "kern.coregionalize" } }, "required": ["type"] },
+          "then": {
+            "description": "B = W W' + diag(kappa), indexed by the integer in the single active column. W is output_dim x rank.",
+            "required": ["output_dim", "W", "kappa", "active_dims"],
+            "properties": { "active_dims": { "maxItems": 1 } }
+          }
         }
       ]
     },
@@ -149,14 +160,31 @@
       "required": ["type"],
       "properties": {
         "type": { "type": "string", "pattern": "^likelihoods\\.[a-z0-9_]+$" },
-        "variance": { "$ref": "#/$defs/positive" },
+        "variance": {
+          "oneOf": [
+            { "$ref": "#/$defs/positive" },
+            { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/positive" } }
+          ]
+        },
+        "output_index_column": { "type": "integer", "minimum": 0 },
         "priors": {
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/prior" }
         }
       },
       "patternProperties": { "^x-": {} },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "likelihoods.mixed_gaussian" } }, "required": ["type"] },
+          "then": {
+            "description": "One Gaussian noise variance per output; the output index is the integer in data.X column output_index_column.",
+            "required": ["variance", "output_index_column"],
+            "properties": { "variance": { "type": "array" } }
+          },
+          "else": { "properties": { "variance": { "type": "number" } } }
+        }
+      ]
     }
   }
 }

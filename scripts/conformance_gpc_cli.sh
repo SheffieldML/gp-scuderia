@@ -34,6 +34,30 @@ same = len(la) == len(lb) and all(
 sys.exit(0 if same and a["likelihood"] == b["likelihood"] and a["data"] == b["data"] else 1)
 P
 
+# stacked multi-output (LCM + per-output noise) survives the .model stream
+"$GP" -v 0 import "$EX/ftc_lcm.json" l.model >/dev/null 2>&1 </dev/null && ok "import accepts LCM + mixed noise" || bad "import accepts LCM + mixed noise"
+"$GP" -v 0 export l.model.csv l.model l.json >/dev/null 2>&1 </dev/null && ok "export accepts LCM + mixed noise" || bad "export accepts LCM + mixed noise"
+"$PY" - "$EX/ftc_lcm.json" l.json <<'P' && ok "LCM round trip (import/export)" || bad "LCM round trip (import/export)"
+import json, sys
+import numpy as np
+a, b = (json.load(open(f)) for f in sys.argv[1:3])
+def leaves(n):
+    return [x for p in n["parts"] for x in leaves(p)] if "parts" in n else [n]
+la, lb = leaves(a["kernel"]), leaves(b["kernel"])
+def same(x, y):
+    if x["type"] != y["type"] or x.get("active_dims") != y.get("active_dims"):
+        return False
+    if x["type"] == "kern.coregionalize":
+        return np.allclose(x["W"], y["W"], rtol=1e-12) and np.allclose(x["kappa"], y["kappa"], rtol=1e-12)
+    return np.isclose(x["variance"], y["variance"], rtol=1e-12) and x.get("lengthscale") == y.get("lengthscale")
+ok = (len(la) == len(lb) and all(same(x, y) for x, y in zip(la, lb))
+      and b["likelihood"]["type"] == "likelihoods.mixed_gaussian"
+      and b["likelihood"]["output_index_column"] == a["likelihood"]["output_index_column"]
+      and np.allclose(a["likelihood"]["variance"], b["likelihood"]["variance"], rtol=1e-9)
+      and a["data"] == b["data"])
+sys.exit(0 if ok else 1)
+P
+
 # learning with default centring: export carries the bias as normalizer.center
 printf '0,0.1\n1,0.9\n2,0.2\n3,-0.5\n' > d.csv
 "$GP" -v 0 learn d.csv c.model >/dev/null 2>&1 </dev/null || true

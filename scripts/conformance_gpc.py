@@ -17,7 +17,7 @@ def check(cond, msg):
     bad += (not cond)
 
 for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52",
-             "ftc_standardize", "dtcvar_mean_constant"]:
+             "ftc_standardize", "dtcvar_mean_constant", "ftc_icm", "ftc_lcm"]:
     doc = load(root / "examples" / (name + ".yaml"))
     ref = doc["x-reference"]; tol = ref["tolerance"]
     m = I.from_wire(doc)
@@ -31,12 +31,17 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_mate
     def leaves(n):
         return [x for p in n["parts"] for x in leaves(p)] if "parts" in n else [n]
     lb, lo = leaves(back["kernel"]), leaves(doc["kernel"])
-    check(len(lb) == len(lo) and all(
-              a["type"] == b["type"] and np.isclose(a["variance"], b["variance"], rtol=1e-12)
-              and np.allclose(a.get("lengthscale", 0), b.get("lengthscale", 0), rtol=1e-12)
-              for a, b in zip(lb, lo)),
+    def same_leaf(a, b):
+        if a["type"] != b["type"] or a.get("active_dims") != b.get("active_dims"):
+            return False
+        if a["type"] == "kern.coregionalize":
+            return (np.allclose(a["W"], b["W"], rtol=1e-12)
+                    and np.allclose(a["kappa"], b["kappa"], rtol=1e-12))
+        return (np.isclose(a["variance"], b["variance"], rtol=1e-12)
+                and np.allclose(a.get("lengthscale", 0), b.get("lengthscale", 0), rtol=1e-12))
+    check(len(lb) == len(lo) and all(same_leaf(a, b) for a, b in zip(lb, lo)),
           "%s kernel round-trips through GPc storage" % name)
-    check(np.isclose(back["likelihood"]["variance"], doc["likelihood"]["variance"], rtol=1e-12),
+    check(np.allclose(back["likelihood"]["variance"], doc["likelihood"]["variance"], rtol=1e-12),
           "%s likelihood variance round-trips" % name)
 
 # CIP-0027 default is unchanged: without the opt-in a trainable White owns the noise.

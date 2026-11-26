@@ -28,6 +28,10 @@ approx = 'ftc';
 if isfield(doc, 'approximation'), approx = doc.approximation; end
 options = gpOptions(approx);
 options.kern = buildKern(doc.kernel, X, d);
+if ~strcmp(doc.likelihood.type, 'likelihoods.gaussian')
+  error('gpscuderia:unsupported', ['GPmat adapter: %s is not supported (stacked multi-output ' ...
+        'models with per-output noise are GPy and GPc only)'], doc.likelihood.type);
+end
 sigma2 = doc.likelihood.variance;
 options.beta = 1/sigma2;
 if strcmp(approx, 'ftc')
@@ -92,6 +96,10 @@ if isfield(node, 'parts')
   kern = kernExpandParam(kern, params);
   params = kernExtractParam(kern);
 else
+  if isfield(node, 'active_dims')
+    error('gpscuderia:unsupported', ['GPmat adapter: active_dims on %s is not supported ' ...
+          '(coregionalised ICM/LCM models are GPy and GPc only)'], node.type);
+  end
   kern = kernCreate(X, gpmatName(node, d));
   kern = setLeaf(kern, node);
   params = kernExtractParam(kern);

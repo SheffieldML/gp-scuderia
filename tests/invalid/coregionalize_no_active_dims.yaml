@@ -1,0 +1,10 @@
+schema_version: '0.1'
+type: models.gp_regression
+input_dim: 2
+output_dim: 1
+approximation: ftc
+data:
+  X: [[0.0, 0], [1.0, 1]]
+  Y: [[0.1], [0.2]]
+kernel: {type: kern.coregionalize, output_dim: 2, W: [[0.5], [0.5]], kappa: [0.1, 0.1]}
+likelihood: {type: likelihoods.gaussian, variance: 0.1}

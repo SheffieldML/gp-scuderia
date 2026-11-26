@@ -1,0 +1,10 @@
+schema_version: '0.1'
+type: models.gp_regression
+input_dim: 2
+output_dim: 1
+approximation: ftc
+data:
+  X: [[0.0, 0], [1.0, 1]]
+  Y: [[0.1], [0.2]]
+kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+likelihood: {type: likelihoods.gaussian, variance: [0.1, 0.2]}

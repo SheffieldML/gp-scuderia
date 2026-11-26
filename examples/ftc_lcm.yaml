@@ -1,0 +1,72 @@
+schema_version: '0.1'
+type: models.gp_regression
+input_dim: 2
+output_dim: 1
+approximation: ftc
+kernel:
+  type: kern.add
+  parts:
+  - type: kern.prod
+    parts:
+    - type: kern.rbf
+      variance: 1.0
+      lengthscale: 1.1
+      ARD: false
+      active_dims: [0]
+    - type: kern.coregionalize
+      output_dim: 3
+      W:
+      - [0.8, 0.1]
+      - [0.3, 0.5]
+      - [-0.2, 0.4]
+      kappa: [0.2, 0.3, 0.1]
+      active_dims: [1]
+  - type: kern.prod
+    parts:
+    - type: kern.matern32
+      variance: 0.6
+      lengthscale: 0.5
+      ARD: false
+      active_dims: [0]
+    - type: kern.coregionalize
+      output_dim: 3
+      W:
+      - [0.4]
+      - [-0.6]
+      - [0.5]
+      kappa: [0.15, 0.25, 0.35]
+      active_dims: [1]
+likelihood:
+  type: likelihoods.mixed_gaussian
+  variance: [0.05, 0.1, 0.15]
+  output_index_column: 1
+data:
+  X:
+  - [0.0, 0]
+  - [0.8, 0]
+  - [1.6, 0]
+  - [0.2, 1]
+  - [1.1, 1]
+  - [0.5, 2]
+  - [1.4, 2]
+  - [2.0, 2]
+  Y:
+  - [0.2]
+  - [0.5]
+  - [0.1]
+  - [-0.3]
+  - [0.2]
+  - [0.45]
+  - [0.0]
+  - [-0.25]
+x-reference:
+  log_likelihood: -6.805912111503291
+  Xnew:
+  - [0.7, 0.0]
+  - [0.7, 1.0]
+  - [0.7, 2.0]
+  - [3.0, 2.0]
+  mean: [0.4625759315835212, -0.08961921813439347, 0.320432471576974, -0.0652359614119627]
+  var: [0.10660256068487746, 0.33080715341183786, 0.3289557293082731, 0.7305989893351256]
+  oracle: GPy
+  tolerance: {log_likelihood: 0.0001, mean: 1.0e-07, var: 1.0e-05}

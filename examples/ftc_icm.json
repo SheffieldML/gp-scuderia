@@ -1,0 +1,129 @@
+{
+  "schema_version": "0.1",
+  "type": "models.gp_regression",
+  "input_dim": 2,
+  "output_dim": 1,
+  "approximation": "ftc",
+  "kernel": {
+    "type": "kern.prod",
+    "parts": [
+      {
+        "type": "kern.rbf",
+        "variance": 1.2,
+        "lengthscale": 0.9,
+        "ARD": false,
+        "active_dims": [
+          0
+        ]
+      },
+      {
+        "type": "kern.coregionalize",
+        "output_dim": 2,
+        "W": [
+          [
+            0.7
+          ],
+          [
+            0.3
+          ]
+        ],
+        "kappa": [
+          0.2,
+          0.4
+        ],
+        "active_dims": [
+          1
+        ]
+      }
+    ]
+  },
+  "likelihood": {
+    "type": "likelihoods.mixed_gaussian",
+    "variance": [
+      0.1,
+      0.2
+    ],
+    "output_index_column": 1
+  },
+  "data": {
+    "X": [
+      [
+        0.0,
+        0
+      ],
+      [
+        1.0,
+        0
+      ],
+      [
+        2.0,
+        0
+      ],
+      [
+        0.5,
+        1
+      ],
+      [
+        1.5,
+        1
+      ],
+      [
+        2.5,
+        1
+      ]
+    ],
+    "Y": [
+      [
+        0.1
+      ],
+      [
+        0.4
+      ],
+      [
+        0.3
+      ],
+      [
+        -0.2
+      ],
+      [
+        0.5
+      ],
+      [
+        0.35
+      ]
+    ]
+  },
+  "x-reference": {
+    "log_likelihood": -4.832207476301136,
+    "Xnew": [
+      [
+        0.7,
+        0.0
+      ],
+      [
+        0.7,
+        1.0
+      ],
+      [
+        3.0,
+        1.0
+      ]
+    ],
+    "mean": [
+      0.2897090958962461,
+      0.015638609656014667,
+      0.1878328369239741
+    ],
+    "var": [
+      0.18652633770226282,
+      0.32399189219743696,
+      0.4606941108172395
+    ],
+    "oracle": "GPy",
+    "tolerance": {
+      "log_likelihood": 0.0001,
+      "mean": 1e-07,
+      "var": 1e-05
+    }
+  }
+}

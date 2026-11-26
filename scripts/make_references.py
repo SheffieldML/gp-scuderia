@@ -10,12 +10,16 @@ from gp_scuderia import gpy_adapter
 
 XNEW = {1: [[-1.5], [0.5], [3.0]], 2: [[-1.0, 0.0], [0.5, 0.5], [2.0, 1.5]]}
 
+# Multi-output goldens: the last column of Xnew is the output index.
+XNEW_BY_NAME = {"ftc_icm": [[0.7, 0], [0.7, 1], [3.0, 1]],
+                "ftc_lcm": [[0.7, 0], [0.7, 1], [0.7, 2], [3.0, 2]]}
+
 for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52",
-             "ftc_standardize", "dtcvar_mean_constant"]:
+             "ftc_standardize", "dtcvar_mean_constant", "ftc_icm", "ftc_lcm"]:
     p = root / "examples" / (name + ".yaml")
     doc = load(p)
     doc.pop("x-reference", None)
-    ref = gpy_adapter.reference(doc, XNEW[doc["input_dim"]])
+    ref = gpy_adapter.reference(doc, XNEW_BY_NAME.get(name, XNEW[doc["input_dim"]]))
     ref["oracle"] = "GPy"
     # GPmat adds 1e-6 jitter to K_uu on sparse models; GPy and GPc add none.
     # Measured effect on the DTCVar bound is ~4e-5, hence the log-likelihood tolerance.

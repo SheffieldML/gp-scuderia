@@ -30,6 +30,17 @@ The wire carries natural, positive, untransformed values: `variance` is a varian
   - Adapters that cannot realise a field raise. GPc and GPmat store `m = (y - bias) / scale`, so both fields map onto `bias` and `scale`. Neither toolbox's own objective includes the `-n log s` term, so the adapters add it when reporting.
 - **Numerical references.** Goldens carry `x-reference` (GPy-generated log likelihood and predictions, with tolerances). Toolboxes that add jitter to sparse models are covered by the stated tolerances.
 
+## Stacked multi-output models (ICM and LCM)
+
+Several outputs share one dataset, as in GPy's `GPCoregionalizedRegression`. `data.X` carries the output index as an integer column (here column `q`, after the `q` input columns), `data.Y` has one column, and `output_dim` stays 1.
+
+- `active_dims` on any kernel leaf lists the `X` columns it reads. A leaf without it reads every column; `lengthscale` lists must match the number of columns read.
+- `kern.coregionalize` has `output_dim`, `W` (`output_dim x rank`), `kappa` (`output_dim` positive entries) and exactly one active column holding the index. Its covariance is `B[i, j]` with `B = W W' + diag(kappa)`.
+- ICM is `kern.prod` of a spatial kernel and a `kern.coregionalize`. LCM is `kern.add` of ICM terms.
+- `likelihoods.mixed_gaussian` gives one noise variance per output and names the index column with `output_index_column`. The Gram is `K` plus `diag(variance[index])`.
+
+Only GPy and GPc implement these in 0.1. GPmat raises `gpscuderia:unsupported` on `active_dims` and on `likelihoods.mixed_gaussian`. Goldens: `ftc_icm`, `ftc_lcm`. The Kronecker form (`output_dim > 1` with a shared input set) is not yet in the schema.
+
 ## Approximations
 
 `approximation` is an enumerated tag. A framework that cannot realise a tag must raise, not substitute. `registry/types.yaml` records which frameworks support which tags (provisional for GPyTorch, GPflow, GPJax).

@@ -20,6 +20,7 @@ end
 function v = ifelse_(c, a, b), if c, v = a; else v = b; end, end
 
 names = {'ftc_rbf_white', 'dtcvar_ard_data', 'ftc_prod_matern52', 'fitc_matern52', 'ftc_standardize', 'dtcvar_mean_constant'};
+multiOutput = {'ftc_icm', 'ftc_lcm'};   % GPy and GPc only: GPmat must refuse them
 for i = 1:numel(names)
   n = names{i};
   doc = gpscuderiaRead([root '/examples/' n '.json']);
@@ -43,6 +44,13 @@ for i = 1:numel(names)
     sprintf('%s kernel round-trips through GPmat storage', n));
   bad += check(abs(back.likelihood.variance - doc.likelihood.variance) < 1e-12, ...
     sprintf('%s likelihood variance round-trips', n));
+end
+
+for i = 1:numel(multiOutput)
+  doc = gpscuderiaRead([root '/examples/' multiOutput{i} '.json']);
+  ok = false;
+  try, evalc('gpscuderiaToModel(doc);'); catch err, ok = ~isempty(strfind(err.identifier, 'gpscuderia:unsupported')); end
+  bad += check(ok, sprintf('rejects %s with gpscuderia:unsupported', multiOutput{i}));
 end
 
 % Negative tests.

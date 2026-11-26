@@ -75,6 +75,20 @@ types:
     verified: false
     verified_in: [gpy, gpc, gpmat]   # goldens fitc_matern52, ftc_prod_matern52
 
+  - portable: kern.coregionalize
+    notes: >
+      B = W W' + diag(kappa), K_nm = B[i_n, i_m] with the output index read from
+      the single active column. Used inside kern.prod (ICM) and kern.add of
+      prods (LCM). GPmat, GPyTorch, GPflow and GPJax adapters reject it in 0.1.
+    gpy: {class: GPy.kern.Coregionalize, params: {W: W, kappa: kappa}}
+    gpc: {class: CCoregionalizeKern, params: {W: W, kappa: kappa}}
+    gpmat: {unsupported: true}
+    gpytorch: {unsupported: true}
+    gpflow: {class: gpflow.kernels.Coregion}
+    gpjax: {unsupported: true}
+    verified: false
+    verified_in: [gpy, gpc]   # goldens ftc_icm, ftc_lcm
+
   - portable: kern.white
     notes: >
       GPyTorch has no white kernel; its noise lives in the likelihood. Adapters
@@ -140,6 +154,21 @@ types:
     api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
     verified_in: [gpy, gpc, gpmat]   # golden ftc_prod_matern52
+
+  - portable: likelihoods.mixed_gaussian
+    notes: >
+      Per-output Gaussian noise variances for stacked multi-output data; the
+      output index is data.X[:, output_index_column]. GPc realises it as an
+      index-white kernel plus a frozen 1e-6 likelihood variance (variances on
+      the wire are exact; the 1e-6 is subtracted on import and added on export).
+    gpy: {class: GPy.likelihoods.MixedNoise}
+    gpc: {class: CIndexWhiteKern}
+    gpmat: {unsupported: true}
+    gpytorch: {unsupported: true}
+    gpflow: {unsupported: true}
+    gpjax: {unsupported: true}
+    verified: false
+    verified_in: [gpy, gpc]
 
   - portable: likelihoods.gaussian
     notes: >
