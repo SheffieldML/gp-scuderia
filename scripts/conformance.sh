@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run every toolbox adapter against the goldens' GPy-generated x-reference.
-# Environment overrides: GPC_PY (GPc/python), GPMAT, ANACONDA_PY, HDF5_LIB.
+# Environment overrides: GPC_PY (GPc/python), GPMAT, ANACONDA_PY, HDF5_LIB, GPY_PY.
 set -u
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 GPC_PY=${GPC_PY:-$HOME/SheffieldML/GPc/python}
@@ -12,6 +12,8 @@ echo "== GPc CLI (gp import/export) =="
 (cd "${GPC_ROOT:-$GPC_PY/..}" && make -s gp >/dev/null) && sh "$ROOT/scripts/conformance_gpc_cli.sh" "${GPC_ROOT:-$GPC_PY/..}" "$ROOT/examples" "$PY" || status=1
 echo "== GPc =="
 PYTHONPATH="$GPC_PY:$ROOT/python" "$PY" "$ROOT/scripts/conformance_gpc.py" || status=1
+echo "== GPy (to_wire / from_wire) =="
+"${GPY_PY:-$ROOT/.venv-gpy/bin/python}" "$ROOT/scripts/conformance_gpy.py" 2>/dev/null || status=1
 echo "== GPmat (Octave) =="
 DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-/opt/homebrew/Cellar/hdf5/1.14.5/lib:/opt/homebrew/lib}" \
   octave-cli --quiet "$ROOT/octave/conformance_gpmat.m" || status=1
