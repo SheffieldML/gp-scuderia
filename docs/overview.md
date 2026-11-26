@@ -2,7 +2,7 @@
 
 ## Encodings
 
-- **YAML** — primary authoring and golden fixtures
+- **YAML** — primary authoring and golden fixtures. GPc reads it directly when built with `make YAML=1` (needs yaml-cpp built with the same compiler as GPc; Homebrew's clang build does not link against g++). The default GPc build reads JSON and refuses `.yaml` with a hint to convert (`gp_scuderia.io.to_json_twin`). Rebuild `CJson.o` when you change the flag.
 - **JSON** — isomorphic machine encoding of the same tree
 
 ## Units
