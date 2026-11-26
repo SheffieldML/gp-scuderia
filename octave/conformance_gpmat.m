@@ -3,7 +3,7 @@
 warning('off', 'all');
 here = fileparts(mfilename('fullpath'));
 root = fileparts(here);
-gpmat = getenv('GPMAT'); if isempty(gpmat), gpmat = [getenv('HOME') '/SheffieldML/GPmat']; end
+gpmat = getenv('GPMAT'); if isempty(gpmat), error('Set GPMAT to a GPmat checkout.'); end
 addpath(genpath(gpmat)); addpath([here '/shims']); addpath([here '/gpscuderia']);
 bad = 0;
 function r = check(cond, msg)

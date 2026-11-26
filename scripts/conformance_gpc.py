@@ -1,6 +1,6 @@
 """Conformance of the GPc adapter against the goldens' x-reference (GPy oracle).
 
-Run: PYTHONPATH=<GPc>/python:<gp-scuderia>/python /opt/anaconda3/bin/python scripts/conformance_gpc.py
+Run: PYTHONPATH=<GPc>/python:<gp-scuderia>/python python3 scripts/conformance_gpc.py
 Reports (rather than hides) documented divergences.
 """
 import pathlib, sys, copy

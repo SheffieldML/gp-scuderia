@@ -1,3 +1,7 @@
 .venv/
 .venv-gpy/
 .venv-*/
+__pycache__/
+*.pyc
+*.code-workspace
+*.code-workspace~

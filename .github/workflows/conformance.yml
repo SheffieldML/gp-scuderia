@@ -1,0 +1,33 @@
+name: conformance
+on:
+  push:
+  pull_request:
+jobs:
+  oracle:
+    # Schema validation and the checks that need only the pinned GPy oracle.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements-gpy.txt
+      - run: python scripts/validate.py
+      - run: python scripts/conformance_gpy.py
+      - run: python scripts/check_laplace_independent.py
+      - run: python scripts/check_unsupported_approximations.py gpy
+  gpc:
+    # GPc C++ reader and CLI against the goldens. GPC_REF names the GPc branch that carries CInterchange.
+    runs-on: ubuntu-latest
+    env:
+      GPC_REF: cip0016-interchange-adapter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: {repository: SheffieldML/GPc, ref: "${{ env.GPC_REF }}", path: gpc}
+      - run: sudo apt-get update && sudo apt-get install -y gfortran libopenblas-dev liblapack-dev
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements-gpy.txt
+      - run: cp gpc/make.linux gpc/make.inc
+      - run: GPC_ROOT=$PWD/gpc sh -c 'cd $GPC_ROOT && make testInterchange gp' 
+      - run: GPC_ROOT=$PWD/gpc PYTHON=python sh scripts/conformance.sh
