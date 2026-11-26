@@ -69,4 +69,19 @@ sys.exit(0 if n["type"] == "normalizer.center" and abs(n["mean"] - 0.175) < 1e-9
 P
 "$GP" -v 0 learn -C 0 -S 0 d.csv u.model >/dev/null 2>&1 </dev/null
 "$GP" -v 0 export d.csv u.model u.json && ok "export accepts uncentred targets" || bad "export accepts uncentred targets"
+# Laplace models: the .model records laplaceInference and exports as models.gp
+for n in laplace_bernoulli laplace_poisson; do
+  "$GP" -v 0 import "$EX/$n.json" $n.model >/dev/null 2>&1 </dev/null && ok "import accepts $n" || bad "import accepts $n"
+  grep -q laplaceInference $n.model && ok "laplaceInference recorded in $n.model" || bad "laplaceInference recorded in $n.model"
+  "$GP" -v 0 export $n.model.csv $n.model $n.out.json >/dev/null 2>&1 </dev/null && ok "export accepts $n" || bad "export accepts $n"
+  "$PY" - "$EX/$n.json" $n.out.json <<'P' && ok "$n round trip (import/export)" || bad "$n round trip (import/export)"
+import json, sys
+a, b = (json.load(open(f)) for f in sys.argv[1:3])
+k = b["kernel"]["parts"][0] if b["kernel"]["type"] == "kern.add" and len(b["kernel"]["parts"]) == 1 else b["kernel"]
+ok = (b["type"] == "models.gp" and b["inference"] == "laplace" and b["likelihood"] == a["likelihood"]
+      and a["data"] == b["data"] and k["type"] == a["kernel"]["type"]
+      and abs(k["variance"] - a["kernel"]["variance"]) < 1e-12 and abs(k["lengthscale"] - a["kernel"]["lengthscale"]) < 1e-12)
+sys.exit(0 if ok else 1)
+P
+done
 exit $fail

@@ -41,4 +41,5 @@ Task created from CIP-0001 (Accepted).
 - Correction: GPc does implement Laplace (CIP-0033, CIP-003A: `CLaplaceInference`, `CProbitNoise`, `CPoissonNoise`). `CInterchange` now reads and runs `models.gp` with these likelihoods; GPc matches the goldens including the latent moments.
 - GPc's Laplace defaults mirror GPy (30 Newton iterations, objective tolerance 1e-4, jitter 1e-6), which leaves about 1e-6 error against the converged answer. `CInterchange` solves to 1e-13 with no jitter so a document has one meaning (`CGp::setLaplaceSolver`).
 - GPmat, GPyTorch, GPflow and GPJax refuse these models: none implements Laplace, and GPflow/GPJax offer different approximations that must not be substituted silently. Refusals are tested.
-- Not done: GPc `.model` stream and `gp export` for Laplace models (`CInterchange::exportModel` still refuses non-Gaussian). Follow-up candidates: that export path, EP (GPc has it), Student-t (GPc has it).
+- GPc export path done (GPc `9913b63`): `gp export` writes Laplace models, and the `.model` stream records `laplaceInference`. Tested by `testInterchange` and `scripts/conformance_gpc_cli.sh`.
+- Not done: EP (GPc has it), Student-t (GPc has it). Variational and MCMC are tracked in `2026-11-26_variational-and-mcmc`.

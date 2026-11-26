@@ -329,6 +329,15 @@ approximations:
   fitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: true,  gpjax: false}
   pitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
 
+# Inference tags reserved by CIP-0001 ("Variational and MCMC approximations").
+# Not yet in the schema enum: each needs a golden, a negative fixture and an
+# independent reference first. 'native' lists frameworks with a class for it
+# (as found on 2026-11-26); everything else raises UnsupportedByFramework.
+reserved_inference:
+  ep:    {native: [gpy, gpc],                   notes: "Expectation propagation; GPc and GPy both implement it."}
+  vi:    {native: [gpflow, gpjax, gpytorch, gpy], notes: "Stores variational.{family,whiten,inducing_inputs,q_mean,q_chol}. GPy via core.SVGP, to be confirmed."}
+  mcmc:  {native: [gpflow, gpjax, gpy],          notes: "Stores prior and mcmc.samples. GPy via its HMC sampler, to be confirmed."}
+
 # Per-framework verification against the goldens (scripts/check_adapter.py).
 # 'reproduces' lists goldens matched within tolerance; anything else is refused with an explicit error.
 framework_verification:
