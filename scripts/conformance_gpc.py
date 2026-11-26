@@ -58,6 +58,12 @@ def rejects(mut, label):
         I.from_wire(d); check(False, "rejects " + label)
     except (I.InterchangeError, KeyError, ValueError, RuntimeError) as e:
         check(True, "rejects %s (%s)" % (label, type(e).__name__))
+for _n in ("laplace_bernoulli", "laplace_poisson"):
+    _d = load(root / "examples" / (_n + ".yaml"))
+    try:
+        I.from_wire(_d); check(False, "rejects %s (non-Gaussian, Laplace)" % _n)
+    except Exception as e:
+        check(True, "rejects %s (%s)" % (_n, type(e).__name__))
 rejects(lambda d: d["kernel"]["parts"][0].update(type="kern.nonesuch"), "unknown kernel type")
 rejects(lambda d: d["data"].update(X=[r[:1] for r in d["data"]["X"]]), "data width != input_dim")
 rejects(lambda d: d["kernel"]["parts"][0].update(lengthscale=[0.8]), "ARD lengthscale length != input_dim")

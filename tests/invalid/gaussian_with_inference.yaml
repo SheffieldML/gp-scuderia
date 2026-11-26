@@ -1,0 +1,7 @@
+schema_version: '0.1'
+type: models.gp_regression
+approximation: ftc
+inference: laplace
+kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+likelihood: {type: likelihoods.gaussian, variance: 0.1}
+data: {X: [[0.0]], Y: [[1.0]]}

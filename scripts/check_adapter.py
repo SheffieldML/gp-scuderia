@@ -14,9 +14,9 @@ from gp_scuderia._common import UnsupportedByFramework
 fw = sys.argv[1]
 A = importlib.import_module("gp_scuderia.%s_adapter" % fw)
 EXPECT_REFUSE = {  # goldens the framework is expected to refuse, with the reason
-    "gpflow": {"ftc_icm", "ftc_lcm", "fitc_matern52"},
-    "gpytorch": {"ftc_rbf_white", "ftc_icm", "ftc_lcm", "fitc_matern52", "dtcvar_ard_data", "dtcvar_mean_constant"},
-    "gpjax": {"ftc_icm", "ftc_lcm", "fitc_matern52"},
+    "gpflow": {"ftc_icm", "ftc_lcm", "fitc_matern52", "laplace_bernoulli", "laplace_poisson"},
+    "gpytorch": {"ftc_rbf_white", "ftc_icm", "ftc_lcm", "fitc_matern52", "dtcvar_ard_data", "dtcvar_mean_constant", "laplace_bernoulli", "laplace_poisson"},
+    "gpjax": {"ftc_icm", "ftc_lcm", "fitc_matern52", "laplace_bernoulli", "laplace_poisson"},
 }[fw]
 bad = 0
 for p in sorted((root / "examples").glob("*.yaml")):

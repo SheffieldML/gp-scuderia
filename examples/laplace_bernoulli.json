@@ -1,0 +1,112 @@
+{
+  "schema_version": "0.1",
+  "type": "models.gp",
+  "input_dim": 1,
+  "output_dim": 1,
+  "approximation": "ftc",
+  "inference": "laplace",
+  "kernel": {
+    "type": "kern.rbf",
+    "variance": 1.5,
+    "lengthscale": 1.1,
+    "ARD": false
+  },
+  "likelihood": {
+    "type": "likelihoods.bernoulli",
+    "link": "probit"
+  },
+  "data": {
+    "X": [
+      [
+        -2.0
+      ],
+      [
+        -1.2
+      ],
+      [
+        -0.5
+      ],
+      [
+        0.0
+      ],
+      [
+        0.4
+      ],
+      [
+        1.1
+      ],
+      [
+        1.8
+      ],
+      [
+        2.5
+      ]
+    ],
+    "Y": [
+      [
+        0.0
+      ],
+      [
+        0.0
+      ],
+      [
+        1.0
+      ],
+      [
+        0.0
+      ],
+      [
+        1.0
+      ],
+      [
+        1.0
+      ],
+      [
+        0.0
+      ],
+      [
+        1.0
+      ]
+    ]
+  },
+  "x-reference": {
+    "log_likelihood": -6.700186523741149,
+    "Xnew": [
+      [
+        -1.5
+      ],
+      [
+        0.5
+      ],
+      [
+        3.0
+      ]
+    ],
+    "mean": [
+      0.28985981783416837,
+      0.6256867109365074,
+      0.5892958532428223
+    ],
+    "var": [
+      0.2058411038393111,
+      0.23420285069396282,
+      0.24202625059363633
+    ],
+    "latent_mean": [
+      -0.7009471474212323,
+      0.38272060169956923,
+      0.31046732049875536
+    ],
+    "latent_var": [
+      0.6020408884682217,
+      0.4263982813575693,
+      0.8916367343750318
+    ],
+    "oracle": "GPy (cross-checked: numpy Laplace, Rasmussen and Williams Alg 3.1/3.2)",
+    "tolerance": {
+      "log_likelihood": 1e-06,
+      "mean": 1e-06,
+      "var": 1e-06
+    }
+  }
+}

@@ -194,6 +194,51 @@ types:
     api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
+  - portable: likelihoods.bernoulli
+    notes: >
+      Binary labels y in {0, 1} with p(y=1|f) = Phi(f) (link: probit). No
+      variance. Needs `inference`. Predictive mean is P(y=1), var is p(1-p).
+    gpy: {class: GPy.likelihoods.Bernoulli}
+    gpc: {unsupported: true}
+    gpmat: {unsupported: true}
+    gpytorch: {unsupported: true}
+    gpflow: {unsupported: true}
+    gpjax: {unsupported: true}
+    verified: false
+    verified_in: [gpy]   # golden laplace_bernoulli; independent numpy check in scripts/check_laplace_independent.py
+
+  - portable: likelihoods.poisson
+    notes: >
+      Counts y in {0, 1, 2, ...} with rate exp(f) (link: log). No variance.
+      Needs `inference`. Predictive mean is exp(mu + s2/2); var is
+      mean + mean^2 (exp(s2) - 1).
+    gpy: {class: GPy.likelihoods.Poisson}
+    gpc: {unsupported: true}
+    gpmat: {unsupported: true}
+    gpytorch: {unsupported: true}
+    gpflow: {unsupported: true}
+    gpjax: {unsupported: true}
+    verified: false
+    verified_in: [gpy]   # golden laplace_poisson
+
+  - portable: models.gp
+    notes: >
+      Full GP with a non-Gaussian likelihood and an `inference` tag (laplace).
+      Reference values: log_likelihood is the Laplace log marginal likelihood
+      (Rasmussen and Williams eq. 3.32); latent_mean and latent_var are the
+      Laplace predictive moments of f; mean and var are the moments of y.
+      No framework other than GPy realises Laplace inference today (GPflow
+      and GPJax offer variational/MCMC alternatives, which are different
+      approximations and must not be substituted silently).
+    gpy: {class: GPy.core.GP, inference: GPy.inference.latent_function_inference.Laplace}
+    gpc: {unsupported: true}
+    gpmat: {unsupported: true}
+    gpytorch: {unsupported: true}
+    gpflow: {unsupported: true}
+    gpjax: {unsupported: true}
+    verified: false
+    verified_in: [gpy]
+
   - portable: models.gp_regression
     gpy: {class: GPy.models.GPRegression}
     gpc: {type: gp, approximation: ftc}

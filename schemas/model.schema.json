@@ -14,6 +14,11 @@
       "type": "string",
       "enum": ["ftc", "dtc", "dtcvar", "fitc", "pitc"]
     },
+    "inference": {
+      "description": "Approximate inference for a non-Gaussian likelihood. Required for them, forbidden for Gaussian ones (which are exact). Only laplace is defined in 0.1; ep is reserved.",
+      "type": "string",
+      "enum": ["laplace"]
+    },
     "sparse_linalg": {
       "type": "string",
       "enum": ["lq", "stable", "legacy"]
@@ -37,6 +42,16 @@
   "additionalProperties": false,
   "allOf": [
     { "not": { "required": ["mean", "normalizer"] } },
+    {
+      "if": { "properties": { "likelihood": { "properties": { "type": { "enum": ["likelihoods.gaussian", "likelihoods.mixed_gaussian"] } } } } },
+      "then": { "not": { "required": ["inference"] } },
+      "else": {
+        "description": "Non-Gaussian likelihoods need an inference tag, a full GP (no sparse approximation), and no mean or normalizer in 0.1.",
+        "required": ["inference"],
+        "properties": { "approximation": { "const": "ftc" } },
+        "not": { "anyOf": [ { "required": ["mean"] }, { "required": ["normalizer"] } ] }
+      }
+    },
     {
       "if": {
         "required": ["approximation"],
@@ -167,6 +182,7 @@
           ]
         },
         "output_index_column": { "type": "integer", "minimum": 0 },
+        "link": { "type": "string", "enum": ["probit", "log"] },
         "priors": {
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/prior" }
@@ -183,6 +199,24 @@
             "properties": { "variance": { "type": "array" } }
           },
           "else": { "properties": { "variance": { "type": "number" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "likelihoods.bernoulli" } }, "required": ["type"] },
+          "then": {
+            "description": "y in {0, 1}; p(y=1|f) = Phi(f). Takes no variance.",
+            "required": ["link"],
+            "properties": { "link": { "const": "probit" } },
+            "not": { "required": ["variance"] }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "likelihoods.poisson" } }, "required": ["type"] },
+          "then": {
+            "description": "y a non-negative integer count; rate exp(f). Takes no variance.",
+            "required": ["link"],
+            "properties": { "link": { "const": "log" } },
+            "not": { "required": ["variance"] }
+          }
         }
       ]
     }

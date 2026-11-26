@@ -78,6 +78,24 @@ def _target_transform(doc):
     return norm, mf
 
 
+_NONGAUSS = {"likelihoods.bernoulli": GPy.likelihoods.Bernoulli,
+             "likelihoods.poisson": GPy.likelihoods.Poisson}
+
+
+def _laplace_from_wire(doc, kern, X, Y):
+    if doc.get("inference") != "laplace":
+        raise NotImplementedError("GPy adapter: inference %s" % doc.get("inference"))
+    if doc.get("approximation", "ftc") != "ftc":
+        raise NotImplementedError("sparse non-Gaussian models are not defined in 0.1")
+    t = doc["likelihood"]["type"]
+    if t == "likelihoods.bernoulli" and not np.isin(Y, (0.0, 1.0)).all():
+        raise ValueError("likelihoods.bernoulli needs labels in {0, 1}")
+    if t == "likelihoods.poisson" and not ((Y >= 0) & (Y == np.round(Y))).all():
+        raise ValueError("likelihoods.poisson needs non-negative integer counts")
+    return GPy.core.GP(X, Y, kern, _NONGAUSS[t](),
+                       inference_method=GPy.inference.latent_function_inference.Laplace())
+
+
 def from_wire(doc):
     d = doc["input_dim"]
     norm, mf = _target_transform(doc)
@@ -85,8 +103,10 @@ def from_wire(doc):
     X = np.array(doc["data"]["X"], float)
     Y = np.array(doc["data"]["Y"], float)
     lik = doc["likelihood"]
-    noise = lik["variance"]
     approx = doc.get("approximation", "ftc")
+    if lik["type"] in _NONGAUSS:
+        return _laplace_from_wire(doc, kern, X, Y)
+    noise = lik["variance"]
     if lik["type"] == "likelihoods.mixed_gaussian":
         if approx != "ftc":
             raise NotImplementedError("mixed_gaussian with %s" % approx)
@@ -149,6 +169,25 @@ def _index_column(k):
     return cols.pop()
 
 
+def _laplace_to_wire(m, lt):
+    if not isinstance(m.inference_method, GPy.inference.latent_function_inference.Laplace):
+        raise WireExportError("non-Gaussian likelihood with %s inference; only Laplace is on the wire"
+                              % type(m.inference_method).__name__)
+    if m.Y.shape[1] != 1:
+        raise WireExportError("only one output column is on the wire")
+    if getattr(m, "normalizer", None) or getattr(m, "mean_function", None) is not None:
+        raise WireExportError("mean and normalizer are not defined for non-Gaussian models in 0.1")
+    link = {"likelihoods.bernoulli": "probit", "likelihoods.poisson": "log"}[lt]
+    if type(m.likelihood.gp_link).__name__.lower() != link:
+        raise WireExportError("unsupported link %s" % type(m.likelihood.gp_link).__name__)
+    d = m.input_dim
+    return {"schema_version": "0.1", "type": "models.gp", "input_dim": d, "output_dim": 1,
+            "approximation": "ftc", "inference": "laplace",
+            "kernel": _kern_to_wire(m.kern, d),
+            "likelihood": {"type": lt, "link": link},
+            "data": {"X": np.asarray(m.X).tolist(), "Y": np.asarray(m.Y).tolist()}}
+
+
 def to_wire(m):
     """Describe a GPy GPRegression or SparseGPRegression as a wire document.
 
@@ -157,6 +196,9 @@ def to_wire(m):
     several outputs, a non-Gaussian likelihood) raises WireExportError.
     """
     mixed = isinstance(m.likelihood, GPy.likelihoods.MixedNoise)
+    lt = {v: k for k, v in _NONGAUSS.items()}.get(type(m.likelihood))
+    if lt is not None:
+        return _laplace_to_wire(m, lt)
     if mixed and type(m) is GPy.core.GP:
         pass
     elif not isinstance(m, (GPy.models.GPRegression, GPy.models.SparseGPRegression)):
@@ -211,6 +253,8 @@ def reference(doc, Xnew):
     """Compute log-likelihood and predictive mean/variance for doc at Xnew."""
     m = from_wire(doc)
     Xnew = np.array(Xnew, float)
+    if doc["likelihood"]["type"] in _NONGAUSS:
+        return _laplace_reference(doc, m, Xnew)
     meta = None
     lik = doc["likelihood"]
     if lik["type"] == "likelihoods.mixed_gaussian":
@@ -227,3 +271,23 @@ def reference(doc, Xnew):
         "mean": mean.ravel().tolist(),
         "var": var.ravel().tolist(),
     }
+
+
+def _laplace_reference(doc, m, Xnew):
+    """Latent Laplace moments from GPy; moments of y in closed form.
+
+    GPy's own predictive variance of y is not usable for these likelihoods (nan for
+    Bernoulli, negative for Poisson), so mean and var are derived here from the
+    latent Gaussian N(mu, s2).
+    """
+    from scipy.stats import norm
+    mu, s2 = (a.ravel() for a in m.predict_noiseless(Xnew))
+    if doc["likelihood"]["type"] == "likelihoods.bernoulli":
+        p = norm.cdf(mu / np.sqrt(1.0 + s2))
+        mean, var = p, p * (1.0 - p)
+    else:
+        mean = np.exp(mu + 0.5 * s2)
+        var = mean + mean ** 2 * np.expm1(s2)
+    return {"log_likelihood": float(m.log_likelihood()), "Xnew": Xnew.tolist(),
+            "mean": mean.tolist(), "var": var.tolist(),
+            "latent_mean": mu.tolist(), "latent_var": s2.tolist()}

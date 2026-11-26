@@ -18,7 +18,8 @@ def check(cond, msg):
     bad += (not cond)
 
 for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52",
-             "ftc_standardize", "dtcvar_mean_constant", "ftc_icm", "ftc_lcm"]:
+             "ftc_standardize", "dtcvar_mean_constant", "ftc_icm", "ftc_lcm",
+             "laplace_bernoulli", "laplace_poisson"]:
     doc = load(root / "examples" / (name + ".yaml"))
     ref = doc["x-reference"]; tol = ref["tolerance"]
     m = A.from_wire(doc)
@@ -29,7 +30,7 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_mate
     back = A.to_wire(m)
     same = all(back[k] == doc[k] for k in
                ("schema_version", "type", "input_dim", "output_dim", "approximation",
-                "kernel", "likelihood", "data") + (("inducing_inputs",) if "inducing_inputs" in doc else ()))
+                "kernel", "likelihood", "data") + (("inference",) if "inference" in doc else ()) + (("inducing_inputs",) if "inducing_inputs" in doc else ()))
     check(same, "%s round trips through to_wire exactly" % name)
     errs = list(validator.iter_errors(back))
     check(not errs, "%s to_wire output validates against the schema" % name)
@@ -47,7 +48,21 @@ refuses(GPy.models.GPRegression(X, Y, GPy.kern.RBF(1), normalizer=True,
                                 mean_function=GPy.mappings.Constant(1, 1)), "mean with normalizer")
 refuses(GPy.models.GPRegression(X, Y, GPy.kern.RBF(1), mean_function=GPy.mappings.Linear(1, 1)), "non-constant mean function")
 refuses(GPy.models.GPRegression(X, np.hstack([Y, Y]), GPy.kern.RBF(1)), "multi-output")
-refuses(GPy.models.GPClassification(X, (Y > 0).astype(float), GPy.kern.RBF(1)), "non-Gaussian model")
+refuses(GPy.models.GPClassification(X, (Y > 0).astype(float), GPy.kern.RBF(1)), "non-Gaussian model with EP inference")
+def raises(f, exc, label):
+    try:
+        f(); check(False, "raises " + label)
+    except exc as e:
+        check(True, "raises %s (%s)" % (label, e))
+_b = load(root / "examples" / "laplace_bernoulli.yaml")
+_p = load(root / "examples" / "laplace_poisson.yaml")
+def _with(d, **kw):
+    d = copy.deepcopy(d); d.update(kw); return d
+_bad_labels = copy.deepcopy(_b); _bad_labels["data"]["Y"][0] = [2.0]
+raises(lambda: A.from_wire(_bad_labels), ValueError, "Bernoulli labels outside {0, 1}")
+_bad_counts = copy.deepcopy(_p); _bad_counts["data"]["Y"][0] = [1.5]
+raises(lambda: A.from_wire(_bad_counts), ValueError, "non-integer Poisson counts")
+check(bool(list(validator.iter_errors(_with(_b, inference="ep")))), "schema rejects inference: ep (reserved)")
 _mx = GPy.core.GP(np.hstack([X, X*0]), Y, GPy.kern.RBF(1, active_dims=[0]),
                   GPy.likelihoods.MixedNoise([GPy.likelihoods.Gaussian(variance=0.1)]),
                   Y_metadata={"output_index": np.zeros((6, 1), int)})

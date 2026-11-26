@@ -15,7 +15,8 @@ XNEW_BY_NAME = {"ftc_icm": [[0.7, 0], [0.7, 1], [3.0, 1]],
                 "ftc_lcm": [[0.7, 0], [0.7, 1], [0.7, 2], [3.0, 2]]}
 
 for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52",
-             "ftc_standardize", "dtcvar_mean_constant", "ftc_icm", "ftc_lcm"]:
+             "ftc_standardize", "dtcvar_mean_constant", "ftc_icm", "ftc_lcm",
+             "laplace_bernoulli", "laplace_poisson"]:
     p = root / "examples" / (name + ".yaml")
     doc = load(p)
     doc.pop("x-reference", None)
@@ -29,6 +30,10 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_mate
         # (jittered Cholesky of K_uu in the whitened FITC path), so this golden
         # states a wider mean tolerance.
         ref["tolerance"]["mean"] = 1e-6
+    if doc.get("inference") == "laplace":
+        # Checked against an independent numpy Laplace (scripts/check_laplace_independent.py).
+        ref["tolerance"] = {"log_likelihood": 1e-6, "mean": 1e-6, "var": 1e-6}
+        ref["oracle"] = "GPy (cross-checked: numpy Laplace, Rasmussen and Williams Alg 3.1/3.2)"
     doc["x-reference"] = ref
     dump(doc, p)
     to_json_twin(p)

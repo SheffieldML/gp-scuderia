@@ -14,6 +14,8 @@ echo "== GPc =="
 PYTHONPATH="$GPC_PY:$ROOT/python" "$PY" "$ROOT/scripts/conformance_gpc.py" || status=1
 echo "== GPy (to_wire / from_wire) =="
 "${GPY_PY:-$ROOT/.venv-gpy/bin/python}" "$ROOT/scripts/conformance_gpy.py" 2>/dev/null || status=1
+echo "== Laplace goldens vs independent numpy implementation =="
+"${GPY_PY:-$ROOT/.venv-gpy/bin/python}" "$ROOT/scripts/check_laplace_independent.py" 2>/dev/null || status=1
 for fw in gpflow gpytorch gpjax; do
   echo "== $fw adapter =="
   if [ -x "$ROOT/.venv-$fw/bin/python" ]; then

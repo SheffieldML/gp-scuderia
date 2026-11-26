@@ -20,7 +20,7 @@ end
 function v = ifelse_(c, a, b), if c, v = a; else v = b; end, end
 
 names = {'ftc_rbf_white', 'dtcvar_ard_data', 'ftc_prod_matern52', 'fitc_matern52', 'ftc_standardize', 'dtcvar_mean_constant'};
-multiOutput = {'ftc_icm', 'ftc_lcm'};   % GPy and GPc only: GPmat must refuse them
+multiOutput = {'ftc_icm', 'ftc_lcm', 'laplace_bernoulli', 'laplace_poisson'};   % GPmat must refuse these (multi-output / non-Gaussian)
 for i = 1:numel(names)
   n = names{i};
   doc = gpscuderiaRead([root '/examples/' n '.json']);
