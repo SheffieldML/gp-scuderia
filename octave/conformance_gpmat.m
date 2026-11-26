@@ -19,7 +19,7 @@ end
 end
 function v = ifelse_(c, a, b), if c, v = a; else v = b; end, end
 
-names = {'ftc_rbf_white', 'dtcvar_ard_data', 'ftc_prod_matern52', 'fitc_matern52'};
+names = {'ftc_rbf_white', 'dtcvar_ard_data', 'ftc_prod_matern52', 'fitc_matern52', 'ftc_standardize', 'dtcvar_mean_constant'};
 for i = 1:numel(names)
   n = names{i};
   doc = gpscuderiaRead([root '/examples/' n '.json']);

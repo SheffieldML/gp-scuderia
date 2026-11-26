@@ -18,6 +18,9 @@ ll = modelLogLikelihood(model);
 if abs(imag(ll)/pi - round(imag(ll)/pi)) > 1e-9
   error('gpscuderia:complexLL', 'log likelihood has imaginary part %g (not k*pi)', imag(ll));
 end
+% GPmat's objective has no -N log(scale) Jacobian (learnScales aside); the wire
+% reports log p(y), so add it here.
+ll = ll - model.N*sum(log(model.scale));
 ref.logLikelihood = real(ll);
 ref.mean = mu(:)';
 ref.var = varsigma(:)';

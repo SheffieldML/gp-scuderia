@@ -17,7 +17,8 @@ def check(cond, msg):
     print(("ok   " if cond else "FAIL ") + msg)
     bad += (not cond)
 
-for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52"]:
+for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52",
+             "ftc_standardize", "dtcvar_mean_constant"]:
     doc = load(root / "examples" / (name + ".yaml"))
     ref = doc["x-reference"]; tol = ref["tolerance"]
     m = A.from_wire(doc)
@@ -42,8 +43,9 @@ def refuses(model, label):
     except A.WireExportError as e:
         check(True, "refuses %s (%s)" % (label, e))
 refuses(GPy.models.GPRegression(X, Y, GPy.kern.StdPeriodic(1)), "unsupported kernel")
-refuses(GPy.models.GPRegression(X, Y, GPy.kern.RBF(1), normalizer=True), "normalizer")
-refuses(GPy.models.GPRegression(X, Y, GPy.kern.RBF(1), mean_function=GPy.mappings.Constant(1, 1)), "mean function")
+refuses(GPy.models.GPRegression(X, Y, GPy.kern.RBF(1), normalizer=True,
+                                mean_function=GPy.mappings.Constant(1, 1)), "mean with normalizer")
+refuses(GPy.models.GPRegression(X, Y, GPy.kern.RBF(1), mean_function=GPy.mappings.Linear(1, 1)), "non-constant mean function")
 refuses(GPy.models.GPRegression(X, np.hstack([Y, Y]), GPy.kern.RBF(1)), "multi-output")
 refuses(GPy.models.GPClassification(X, (Y > 0).astype(float), GPy.kern.RBF(1)), "non-Gaussian model")
 refuses(GPy.models.GPRegression(np.hstack([X, X]), Y, GPy.kern.RBF(1, active_dims=[1])), "active_dims")

@@ -42,9 +42,28 @@ end
 model = gpCreate(d, size(Y, 2), X, Y, options);
 if strcmp(approx, 'ftc'), model.optimiseBeta = false; else model.X_u = Z; end
 
-% Zero mean, unit scale: wire semantics.
-model.bias = zeros(1, size(Y, 2));
-model.scale = ones(1, size(Y, 2));
+% Target transform: no field means zero mean and unit scale. GPmat stores
+% m = (y - bias)./scale, which is what mean.constant and normalizer describe.
+if isfield(doc, 'mean') && isfield(doc, 'normalizer')
+  error('gpscuderia:unsupported', 'mean and normalizer together are not in schema 0.1');
+end
+bias = 0; scale = 1;
+if isfield(doc, 'mean')
+  if ~strcmp(doc.mean.type, 'mean.constant')
+    error('gpscuderia:unsupported', '%s not supported by GPmat adapter', doc.mean.type);
+  end
+  bias = doc.mean.value;
+end
+if isfield(doc, 'normalizer')
+  switch doc.normalizer.type
+    case 'normalizer.center',      bias = doc.normalizer.mean;
+    case 'normalizer.standardize', bias = doc.normalizer.mean; scale = doc.normalizer.std;
+    otherwise
+      error('gpscuderia:unsupported', '%s not supported by GPmat adapter', doc.normalizer.type);
+  end
+end
+model.bias = bias*ones(1, size(Y, 2));
+model.scale = scale*ones(1, size(Y, 2));
 model.m = gpComputeM(model);
 model = gpExpandParam(model, gpExtractParam(model));
 

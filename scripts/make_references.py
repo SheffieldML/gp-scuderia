@@ -10,7 +10,8 @@ from gp_scuderia import gpy_adapter
 
 XNEW = {1: [[-1.5], [0.5], [3.0]], 2: [[-1.0, 0.0], [0.5, 0.5], [2.0, 1.5]]}
 
-for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52"]:
+for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52",
+             "ftc_standardize", "dtcvar_mean_constant"]:
     p = root / "examples" / (name + ".yaml")
     doc = load(p)
     doc.pop("x-reference", None)

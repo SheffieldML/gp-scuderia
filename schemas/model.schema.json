@@ -20,6 +20,8 @@
     },
     "inducing_inputs": { "$ref": "#/$defs/matrix" },
     "kernel": { "$ref": "#/$defs/kernelNode" },
+    "mean": { "$ref": "#/$defs/meanNode" },
+    "normalizer": { "$ref": "#/$defs/normalizerNode" },
     "likelihood": { "$ref": "#/$defs/likelihoodNode" },
     "data": {
       "type": "object",
@@ -34,6 +36,7 @@
   "patternProperties": { "^x-": {} },
   "additionalProperties": false,
   "allOf": [
+    { "not": { "required": ["mean", "normalizer"] } },
     {
       "if": {
         "required": ["approximation"],
@@ -50,6 +53,42 @@
     }
   ],
   "$defs": {
+    "meanNode": {
+      "description": "Prior mean on the original target scale. Absent means zero. Exclusive with normalizer in 0.1.",
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": { "const": "mean.constant" },
+        "value": { "type": "number" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "normalizerNode": {
+      "description": "The model was fitted to (y - mean) / std. Log likelihood and predictions are reported on the original scale, including the -n log(std) Jacobian term. Absent means no transform.",
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["type", "mean"],
+          "properties": {
+            "type": { "const": "normalizer.center" },
+            "mean": { "type": "number" }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        },
+        {
+          "required": ["type", "mean", "std"],
+          "properties": {
+            "type": { "const": "normalizer.standardize" },
+            "mean": { "type": "number" },
+            "std": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        }
+      ]
+    },
     "matrix": {
       "type": "array",
       "minItems": 1,

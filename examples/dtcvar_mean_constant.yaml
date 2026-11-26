@@ -1,0 +1,37 @@
+schema_version: '0.1'
+type: models.sparse_gp_regression
+input_dim: 1
+output_dim: 1
+approximation: dtcvar
+inducing_inputs:
+- [-1.5]
+- [0.5]
+- [2.0]
+kernel: {type: kern.rbf, variance: 1.2, lengthscale: 1.1, ARD: false}
+likelihood: {type: likelihoods.gaussian, variance: 0.07}
+mean: {type: mean.constant, value: -3.0}
+data:
+  X:
+  - [-2.0]
+  - [-1.0]
+  - [0.0]
+  - [1.0]
+  - [2.5]
+  - [3.0]
+  Y:
+  - [-2.7]
+  - [-3.6]
+  - [-3.1]
+  - [-2.0]
+  - [-3.3]
+  - [-2.6]
+x-reference:
+  log_likelihood: -21.937292428550144
+  Xnew:
+  - [-1.5]
+  - [0.5]
+  - [3.0]
+  mean: [-3.2344076660902035, -2.6448696339057154, -2.8569019944193483]
+  var: [0.11205254227168732, 0.11293995135168239, 0.717160072625509]
+  oracle: GPy
+  tolerance: {log_likelihood: 0.0001, mean: 1.0e-07, var: 1.0e-05}

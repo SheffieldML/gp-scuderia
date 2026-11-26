@@ -38,20 +38,54 @@ def _kern_from_wire(node, input_dim):
     return cls(input_dim, **kw)
 
 
+class _FixedStandardize(GPy.util.normalizer.Standardize):
+    """GPy Standardize with the wire's mean and std instead of the data's."""
+
+    def __init__(self, mean, std):
+        super().__init__()
+        self.mean = np.array([[mean]], float)
+        self.std = np.array([[std]], float)
+
+    def scale_by(self, Y):
+        pass
+
+
+def _target_transform(doc):
+    """(normalizer, mean_function) kwargs for a GPy model from the wire fields."""
+    if "mean" in doc and "normalizer" in doc:
+        raise NotImplementedError("mean and normalizer together are not in schema 0.1")
+    norm, mf = None, None
+    if "normalizer" in doc:
+        n = doc["normalizer"]
+        if n["type"] == "normalizer.center":
+            norm = _FixedStandardize(n["mean"], 1.0)
+        elif n["type"] == "normalizer.standardize":
+            norm = _FixedStandardize(n["mean"], n["std"])
+        else:
+            raise NotImplementedError(n["type"])
+    if "mean" in doc:
+        if doc["mean"]["type"] != "mean.constant":
+            raise NotImplementedError(doc["mean"]["type"])
+        mf = GPy.mappings.Constant(doc["input_dim"], 1, value=doc["mean"]["value"])
+    return norm, mf
+
+
 def from_wire(doc):
     d = doc["input_dim"]
+    norm, mf = _target_transform(doc)
     kern = _kern_from_wire(doc["kernel"], d)
     X = np.array(doc["data"]["X"], float)
     Y = np.array(doc["data"]["Y"], float)
     noise = doc["likelihood"]["variance"]
     approx = doc.get("approximation", "ftc")
     if approx == "ftc":
-        return GPy.models.GPRegression(X, Y, kern, noise_var=noise)
+        return GPy.models.GPRegression(X, Y, kern, noise_var=noise, normalizer=norm,
+                                       mean_function=mf)
     Z = np.array(doc["inducing_inputs"], float)
     if approx == "dtcvar":
-        m = GPy.models.SparseGPRegression(X, Y, kern, Z=Z)
+        m = GPy.models.SparseGPRegression(X, Y, kern, Z=Z, normalizer=norm, mean_function=mf)
     elif approx == "fitc":
-        m = GPy.models.SparseGPRegression(X, Y, kern, Z=Z)
+        m = GPy.models.SparseGPRegression(X, Y, kern, Z=Z, normalizer=norm, mean_function=mf)
         m.inference_method = GPy.inference.latent_function_inference.FITC()
     else:
         raise NotImplementedError("GPy adapter: approximation %s" % approx)
@@ -89,10 +123,14 @@ def to_wire(m):
     """
     if not isinstance(m, (GPy.models.GPRegression, GPy.models.SparseGPRegression)):
         raise WireExportError("unsupported GPy model %s" % type(m).__name__)
-    if getattr(m, "normalizer", None):
-        raise WireExportError("normalizer is not yet on the wire (CIP-0001 item 3)")
-    if getattr(m, "mean_function", None) is not None:
-        raise WireExportError("mean functions are not yet on the wire (CIP-0001 item 3)")
+    norm = getattr(m, "normalizer", None)
+    mf = getattr(m, "mean_function", None)
+    if norm and mf is not None:
+        raise WireExportError("mean and normalizer together are not in schema 0.1")
+    if norm and not isinstance(norm, GPy.util.normalizer.Standardize):
+        raise WireExportError("unsupported normalizer %s" % type(norm).__name__)
+    if mf is not None and not isinstance(mf, GPy.mappings.Constant):
+        raise WireExportError("unsupported mean function %s" % type(mf).__name__)
     if not isinstance(m.likelihood, GPy.likelihoods.Gaussian):
         raise WireExportError("non-Gaussian likelihood")
     if m.Y.shape[1] != 1:
@@ -114,7 +152,13 @@ def to_wire(m):
     doc["kernel"] = _kern_to_wire(m.kern, d)
     doc["likelihood"] = {"type": "likelihoods.gaussian",
                          "variance": float(m.likelihood.variance[0])}
-    doc["data"] = {"X": np.asarray(m.X).tolist(), "Y": np.asarray(m.Y).tolist()}
+    Y = np.asarray(m.Y)  # GPy keeps the original-scale Y; the normalized copy is Y_normalized
+    if norm:
+        doc["normalizer"] = {"type": "normalizer.standardize",
+                             "mean": float(norm.mean.ravel()[0]), "std": float(norm.std.ravel()[0])}
+    if mf is not None:
+        doc["mean"] = {"type": "mean.constant", "value": float(np.asarray(mf.C.values).ravel()[0])}
+    doc["data"] = {"X": np.asarray(m.X).tolist(), "Y": Y.tolist()}
     return doc
 
 
@@ -123,8 +167,13 @@ def reference(doc, Xnew):
     m = from_wire(doc)
     Xnew = np.array(Xnew, float)
     mean, var = m.predict(Xnew)
+    ll = float(m.log_likelihood())
+    if doc.get("normalizer", {}).get("type") == "normalizer.standardize":
+        # GPy scores the standardized targets; the wire reports log p(y).
+        Y = np.asarray(doc["data"]["Y"], float)
+        ll -= Y.size * float(np.log(doc["normalizer"]["std"]))
     return {
-        "log_likelihood": float(m.log_likelihood()),
+        "log_likelihood": ll,
         "Xnew": Xnew.tolist(),
         "mean": mean.ravel().tolist(),
         "var": var.ravel().tolist(),

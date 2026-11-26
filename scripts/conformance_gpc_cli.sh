@@ -21,10 +21,15 @@ P
 # exact GP with White cannot round trip through .model: import must refuse
 if "$GP" -v 0 import "$EX/ftc_rbf_white.json" w.model >/dev/null 2>&1 </dev/null; then bad "import refuses exact+White"; else ok "import refuses exact+White"; fi
 
-# learning with default centring cannot be carried by the wire format: export must refuse
+# learning with default centring: export carries the bias as normalizer.center
 printf '0,0.1\n1,0.9\n2,0.2\n3,-0.5\n' > d.csv
 "$GP" -v 0 learn d.csv c.model >/dev/null 2>&1 </dev/null || true
-if "$GP" -v 0 export d.csv c.model c.json >/dev/null 2>&1 </dev/null; then bad "export refuses centred targets"; else ok "export refuses centred targets"; fi
+"$GP" -v 0 export d.csv c.model c.json >/dev/null 2>&1 </dev/null && ok "export accepts centred targets" || bad "export accepts centred targets"
+"$PY" - c.json <<'P' && ok "centred export carries normalizer.center = mean(y)" || bad "centred export carries normalizer.center = mean(y)"
+import json, sys
+n = json.load(open(sys.argv[1]))["normalizer"]
+sys.exit(0 if n["type"] == "normalizer.center" and abs(n["mean"] - 0.175) < 1e-9 else 1)
+P
 "$GP" -v 0 learn -C 0 -S 0 d.csv u.model >/dev/null 2>&1 </dev/null
 "$GP" -v 0 export d.csv u.model u.json && ok "export accepts uncentred targets" || bad "export accepts uncentred targets"
 exit $fail

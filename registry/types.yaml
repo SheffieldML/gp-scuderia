@@ -202,6 +202,46 @@ types:
     api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
 
+  - portable: mean.constant
+    notes: >
+      Prior mean on the original target scale; equivalent to fitting a zero-mean
+      GP to y - c, so no Jacobian. GPc and GPmat map it onto bias (scale 1).
+    gpy: {class: GPy.mappings.Constant, params: {value: C}}
+    gpc: {native: bias}
+    gpmat: {native: bias}
+    gpytorch: {status: not-yet-checked}
+    gpflow: {status: not-yet-checked}
+    gpjax: {status: not-yet-checked}
+    verified: false
+    verified_in: [gpy, gpc, gpmat]   # golden dtcvar_mean_constant
+
+  - portable: normalizer.center
+    notes: >
+      Fitted to y - mean. GPy has no centre-only normalizer: the adapter uses
+      Standardize with std 1. GPc and GPmat map onto bias.
+    gpy: {class: GPy.util.normalizer.Standardize, params: {mean: mean}}
+    gpc: {native: bias}
+    gpmat: {native: bias}
+    gpytorch: {status: not-yet-checked}
+    gpflow: {status: not-yet-checked}
+    gpjax: {status: not-yet-checked}
+    verified: false
+    verified_in: [gpc]   # via gp export of a centred model
+
+  - portable: normalizer.standardize
+    notes: >
+      Fitted to (y - mean) / std. Reported log likelihood includes -n log std,
+      which GPy, GPc and GPmat do not add themselves, so each adapter adds it.
+      The GPy adapter fixes mean and std from the wire instead of the data.
+    gpy: {class: GPy.util.normalizer.Standardize, params: {mean: mean, std: std}}
+    gpc: {native: "bias, scale"}
+    gpmat: {native: "bias, scale"}
+    gpytorch: {status: not-yet-checked}
+    gpflow: {status: not-yet-checked}
+    gpjax: {status: not-yet-checked}
+    verified: false
+    verified_in: [gpy, gpc, gpmat]   # golden ftc_standardize
+
 # Which approximation tags each framework can realise for sparse regression.
 # gpflow fitc: gpflow.models.GPRFITC (Snelson & Ghahramani). gpflow dtcvar:
 # gpflow.models.SGPR (Titsias 2009). gpjax dtcvar: CollapsedVariationalGaussian
