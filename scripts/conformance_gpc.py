@@ -24,13 +24,8 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data"]:
     dl = abs(g["log_likelihood"] - ref["log_likelihood"])
     dm = np.abs(np.array(g["mean"]) - ref["mean"]).max()
     dv = np.abs(np.array(g["var"]) - ref["var"]).max()
-    if name == "ftc_rbf_white":
-        # Known divergence: CIP-0027 makes a trainable white kernel own the
-        # Gram noise, so likelihood.variance is not added (GPy and GPmat add both).
-        print("known divergence (CIP-0027 noise ownership) %s: dLL=%.3g dmean=%.3g" % (name, dl, dm))
-    else:
-        check(dl <= tol["log_likelihood"] and dm <= tol["mean"] and dv <= tol["var"],
-              "%s matches GPy: dLL=%.2g dmean=%.2g dvar=%.2g" % (name, dl, dm, dv))
+    check(dl <= tol["log_likelihood"] and dm <= tol["mean"] and dv <= tol["var"],
+          "%s matches GPy: dLL=%.2g dmean=%.2g dvar=%.2g" % (name, dl, dm, dv))
     back = I.to_wire(m, doc)
     leaf = back["kernel"]["parts"][0]
     orig = doc["kernel"]["parts"][0]
@@ -39,6 +34,12 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data"]:
           "%s kernel round-trips through GPc storage" % name)
     check(np.isclose(back["likelihood"]["variance"], doc["likelihood"]["variance"], rtol=1e-12),
           "%s likelihood variance round-trips" % name)
+
+# CIP-0027 default is unchanged: without the opt-in a trainable White owns the noise.
+doc = load(root / "examples" / "ftc_rbf_white.yaml")
+m = I.from_wire(doc); m.set_allow_white_and_noise(False)
+check(abs(-m.objective() - doc["x-reference"]["log_likelihood"]) > 0.1,
+      "default (CIP-0027) noise ownership preserved without opt-in")
 
 # Negative tests: refuse rather than guess.
 base = load(root / "examples" / "dtcvar_ard_data.yaml")
