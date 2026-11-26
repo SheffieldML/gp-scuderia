@@ -38,5 +38,7 @@ Task created from CIP-0001 (Accepted).
 ### 2026-11-26 (completed)
 - GPy is the oracle for the goldens and agrees with the independent numpy Laplace to about 1e-8 (log likelihood to 7e-10).
 - GPy's own predictive variance of y is nan for Bernoulli and negative for Poisson, so `mean`/`var` are derived from the latent Laplace moments (`latent_mean`, `latent_var`) in closed form.
-- GPc, GPmat, GPyTorch, GPflow and GPJax refuse these models: none implements Laplace, and GPflow/GPJax offer different approximations that must not be substituted silently. Refusals are tested.
-- Follow-up candidates: GPc Laplace (a C++ implementation), EP, Student-t.
+- Correction: GPc does implement Laplace (CIP-0033, CIP-003A: `CLaplaceInference`, `CProbitNoise`, `CPoissonNoise`). `CInterchange` now reads and runs `models.gp` with these likelihoods; GPc matches the goldens including the latent moments.
+- GPc's Laplace defaults mirror GPy (30 Newton iterations, objective tolerance 1e-4, jitter 1e-6), which leaves about 1e-6 error against the converged answer. `CInterchange` solves to 1e-13 with no jitter so a document has one meaning (`CGp::setLaplaceSolver`).
+- GPmat, GPyTorch, GPflow and GPJax refuse these models: none implements Laplace, and GPflow/GPJax offer different approximations that must not be substituted silently. Refusals are tested.
+- Not done: GPc `.model` stream and `gp export` for Laplace models (`CInterchange::exportModel` still refuses non-Gaussian). Follow-up candidates: that export path, EP (GPc has it), Student-t (GPc has it).
