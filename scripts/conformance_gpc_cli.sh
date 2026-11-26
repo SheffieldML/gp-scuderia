@@ -18,8 +18,21 @@ a, b = (json.load(open(f)) for f in sys.argv[1:3])
 sys.exit(0 if all(a[k] == b[k] for k in ("kernel", "likelihood", "inducing_inputs", "data", "approximation", "sparse_linalg")) else 1)
 P
 
-# exact GP with White cannot round trip through .model: import must refuse
-if "$GP" -v 0 import "$EX/ftc_rbf_white.json" w.model >/dev/null 2>&1 </dev/null; then bad "import refuses exact+White"; else ok "import refuses exact+White"; fi
+# exact GP with White: the .model records the allow-white flag, so it round trips
+"$GP" -v 0 import "$EX/ftc_rbf_white.json" w.model >/dev/null 2>&1 </dev/null && ok "import accepts exact+White" || bad "import accepts exact+White"
+grep -q allowWhiteAndLikelihoodNoise w.model && ok "allow-white flag recorded in .model" || bad "allow-white flag recorded in .model"
+"$GP" -v 0 export w.model.csv w.model w.json >/dev/null 2>&1 </dev/null && ok "export accepts exact+White" || bad "export accepts exact+White"
+"$PY" - "$EX/ftc_rbf_white.json" w.json <<'P' && ok "exact+White round trip (import/export)" || bad "exact+White round trip (import/export)"
+import json, sys
+a, b = (json.load(open(f)) for f in sys.argv[1:3])
+def leaves(n):
+    return [x for p in n["parts"] for x in leaves(p)] if "parts" in n else [n]
+la, lb = leaves(a["kernel"]), leaves(b["kernel"])
+same = len(la) == len(lb) and all(
+    x["type"] == y["type"] and x["variance"] == y["variance"] and x.get("lengthscale") == y.get("lengthscale")
+    for x, y in zip(la, lb))
+sys.exit(0 if same and a["likelihood"] == b["likelihood"] and a["data"] == b["data"] else 1)
+P
 
 # learning with default centring: export carries the bias as normalizer.center
 printf '0,0.1\n1,0.9\n2,0.2\n3,-0.5\n' > d.csv
