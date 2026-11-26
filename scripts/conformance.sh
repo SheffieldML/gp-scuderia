@@ -16,10 +16,12 @@ echo "== GPy (to_wire / from_wire) =="
 "${GPY_PY:-$ROOT/.venv-gpy/bin/python}" "$ROOT/scripts/conformance_gpy.py" 2>/dev/null || status=1
 echo "== Laplace goldens vs independent numpy implementation =="
 "${GPY_PY:-$ROOT/.venv-gpy/bin/python}" "$ROOT/scripts/check_laplace_independent.py" 2>/dev/null || status=1
+"${GPY_PY:-$ROOT/.venv-gpy/bin/python}" "$ROOT/scripts/check_unsupported_approximations.py" gpy 2>/dev/null || status=1
 for fw in gpflow gpytorch gpjax; do
   echo "== $fw adapter =="
   if [ -x "$ROOT/.venv-$fw/bin/python" ]; then
     "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/check_adapter.py" $fw 2>/dev/null || status=1
+    "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/check_unsupported_approximations.py" $fw 2>/dev/null || status=1
   else echo "skipped (no .venv-$fw)"; fi
 done
 echo "== GPmat (Octave) =="

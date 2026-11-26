@@ -5,6 +5,7 @@ GPy-natural (positive, untransformed), so this adapter does no unit conversion.
 """
 import numpy as np
 import GPy
+from ._common import UnsupportedByFramework
 
 _KERN = {
     "kern.rbf": GPy.kern.RBF,
@@ -124,7 +125,7 @@ def from_wire(doc):
         m = GPy.models.SparseGPRegression(X, Y, kern, Z=Z, normalizer=norm, mean_function=mf)
         m.inference_method = GPy.inference.latent_function_inference.FITC()
     else:
-        raise NotImplementedError("GPy adapter: approximation %s" % approx)
+        raise UnsupportedByFramework("GPy adapter: approximation '%s' has no golden or adapter path yet" % approx)
     m.Gaussian_noise.variance = noise
     m.Z.fix()
     return m

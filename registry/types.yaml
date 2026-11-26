@@ -322,6 +322,12 @@ types:
 # (requires a Gaussian likelihood). gpytorch dtcvar: InducingPointKernel (see
 # prediction caveat above). No class found for dtc or pitc outside GPy/GPc/GPmat.
 # false means "no native class found on 2026-11-25", not "impossible".
+# 'true' means the framework has a native class, not that gp-scuderia has a
+# verified path. Verified paths (golden + adapter) today: ftc everywhere, dtcvar
+# (gpy, gpc, gpmat, gpflow, gpjax, gpytorch), fitc (gpy, gpc, gpmat, gpflow).
+# dtc and pitc have no golden: every adapter raises UnsupportedByFramework, and
+# GPc's reader fails with a pitc-specific message. A tag moves to verified when
+# a second implementation reproduces a GPy-generated golden for it.
 approximations:
   ftc:    {gpy: true,  gpc: true,  gpmat: true,  gpytorch: true,  gpflow: true,  gpjax: true}
   dtc:    {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
