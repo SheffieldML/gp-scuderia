@@ -1,0 +1,122 @@
+{
+  "schema_version": "0.1",
+  "type": "models.sparse_gp_regression",
+  "input_dim": 2,
+  "output_dim": 1,
+  "approximation": "fitc",
+  "sparse_linalg": "lq",
+  "inducing_inputs": [
+    [
+      -1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.5
+    ],
+    [
+      1.2,
+      0.0
+    ]
+  ],
+  "kernel": {
+    "type": "kern.add",
+    "parts": [
+      {
+        "type": "kern.matern52",
+        "variance": 1.1,
+        "lengthscale": 0.9,
+        "ARD": false
+      },
+      {
+        "type": "kern.bias",
+        "variance": 0.3
+      }
+    ]
+  },
+  "likelihood": {
+    "type": "likelihoods.gaussian",
+    "variance": 0.08
+  },
+  "data": {
+    "X": [
+      [
+        -1.2,
+        0.3
+      ],
+      [
+        -0.4,
+        -0.8
+      ],
+      [
+        0.2,
+        0.5
+      ],
+      [
+        0.9,
+        1.1
+      ],
+      [
+        1.5,
+        -0.2
+      ],
+      [
+        0.6,
+        -1.0
+      ]
+    ],
+    "Y": [
+      [
+        0.35
+      ],
+      [
+        -0.2
+      ],
+      [
+        0.6
+      ],
+      [
+        0.1
+      ],
+      [
+        -0.45
+      ],
+      [
+        0.25
+      ]
+    ]
+  },
+  "x-reference": {
+    "log_likelihood": -6.428749222751563,
+    "Xnew": [
+      [
+        -1.0,
+        0.0
+      ],
+      [
+        0.5,
+        0.5
+      ],
+      [
+        2.0,
+        1.5
+      ]
+    ],
+    "mean": [
+      0.2908262589098109,
+      0.32011987737830344,
+      0.014857403456598183
+    ],
+    "var": [
+      0.35233312904187336,
+      0.45281683847356485,
+      1.3059434131217598
+    ],
+    "oracle": "GPy",
+    "tolerance": {
+      "log_likelihood": 0.0001,
+      "mean": 1e-06,
+      "var": 1e-05
+    }
+  }
+}

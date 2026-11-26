@@ -73,6 +73,7 @@ types:
     gpjax: {class: gpjax.kernels.Matern52}
     api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
+    verified_in: [gpy, gpc, gpmat]   # goldens fitc_matern52, ftc_prod_matern52
 
   - portable: kern.white
     notes: >
@@ -127,8 +128,9 @@ types:
 
   - portable: kern.prod
     notes: >
-      Product over the same inputs. GPc `tensor` is a product over the same
-      inputs; confirm GPmat naming when expanding.
+      Product over the same inputs. GPc `tensor` and GPmat `tensor` are products
+      over the same inputs (confirmed by golden ftc_prod_matern52). kern.white
+      inside a product is refused: it is an additive noise term.
     gpy: {class: GPy.kern.Prod}
     gpc: {stream: tensor}
     gpmat: {kern: tensor}
@@ -137,6 +139,7 @@ types:
     gpjax: {class: gpjax.kernels.ProductKernel}
     api_checked: "2026-11-25"   # gpytorch/gpflow/gpjax names only
     verified: false
+    verified_in: [gpy, gpc, gpmat]   # golden ftc_prod_matern52
 
   - portable: likelihoods.gaussian
     notes: >

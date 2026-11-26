@@ -26,13 +26,8 @@ if size(X, 2) ~= d
 end
 approx = 'ftc';
 if isfield(doc, 'approximation'), approx = doc.approximation; end
-leaves = kernLeaves(doc.kernel);
-names = cell(1, numel(leaves));
-for i = 1:numel(leaves)
-  names{i} = gpmatName(leaves{i}, d);
-end
 options = gpOptions(approx);
-if numel(names) == 1, options.kern = names{1}; else options.kern = names; end
+options.kern = buildKern(doc.kernel, X, d);
 sigma2 = doc.likelihood.variance;
 options.beta = 1/sigma2;
 if strcmp(approx, 'ftc')
@@ -47,12 +42,6 @@ end
 model = gpCreate(d, size(Y, 2), X, Y, options);
 if strcmp(approx, 'ftc'), model.optimiseBeta = false; else model.X_u = Z; end
 
-% Kernel parameters (component structures).
-for i = 1:numel(leaves)
-  model.kern = setLeaf(model.kern, i, numel(leaves), leaves{i});
-end
-model.kern = kernExpandParam(model.kern, kernExtractParam(model.kern));
-
 % Zero mean, unit scale: wire semantics.
 model.bias = zeros(1, size(Y, 2));
 model.scale = ones(1, size(Y, 2));
@@ -60,17 +49,33 @@ model.m = gpComputeM(model);
 model = gpExpandParam(model, gpExtractParam(model));
 
 
-function leaves = kernLeaves(node)
+function [kern, params] = buildKern(node, X, d)
+% Recursive kernel construction: leaves carry their parameters, composites
+% (kern.add -> cmpnd, kern.prod -> tensor) re-initialise their children, so the
+% concatenated parameter vector is expanded after assembly.
 if isfield(node, 'parts')
-  if ~strcmp(node.type, 'kern.add')
-    error('gpscuderia:unsupported', '%s not supported by GPmat adapter', node.type);
+  switch node.type
+    case 'kern.add',  ktype = 'cmpnd';  initFn = @cmpndKernParamInit;
+    case 'kern.prod', ktype = 'tensor'; initFn = @tensorKernParamInit;
+    otherwise
+      error('gpscuderia:unsupported', '%s not supported by GPmat adapter', node.type);
   end
-  leaves = {};
+  kern = kernCreate(X, {ktype, 'rbf'});
+  kern.comp = cell(1, numel(node.parts));
+  params = [];
   for i = 1:numel(node.parts)
-    leaves = [leaves, kernLeaves(node.parts{i})]; %#ok<AGROW>
+    [c, p] = buildKern(node.parts{i}, X, d);
+    c.index = [];
+    kern.comp{i} = c;
+    params = [params, p]; %#ok<AGROW>
   end
+  kern = initFn(kern);
+  kern = kernExpandParam(kern, params);
+  params = kernExtractParam(kern);
 else
-  leaves = {node};
+  kern = kernCreate(X, gpmatName(node, d));
+  kern = setLeaf(kern, node);
+  params = kernExtractParam(kern);
 end
 
 
@@ -85,20 +90,18 @@ switch leaf.type
   case 'kern.white', n = 'white';
   case 'kern.bias',  n = 'bias';
   case 'kern.matern32', n = 'matern32';
+  case 'kern.matern52', n = 'matern52';
   otherwise
     error('gpscuderia:unsupported', 'GPmat adapter: unsupported %s', leaf.type);
 end
 
 
-function c = setLeaf(kern, i, n, leaf)
-c = kern;
-if n == 1, comp = kern; else comp = kern.comp{i}; end
+function comp = setLeaf(comp, leaf)
 comp.variance = leaf.variance;
 if isfield(comp, 'inputScales')
   comp.inputScales = (1 ./ leaf.lengthscale(:)').^2;
 elseif isfield(comp, 'inverseWidth')
   comp.inverseWidth = 1/leaf.lengthscale^2;
-elseif strcmp(leaf.type, 'kern.matern32')
+elseif any(strcmp(leaf.type, {'kern.matern32', 'kern.matern52'}))
   comp.lengthScale = leaf.lengthscale;
 end
-if n == 1, c = comp; else c.comp{i} = comp; end

@@ -16,7 +16,7 @@ def check(cond, msg):
     print(("ok   " if cond else "FAIL ") + msg)
     bad += (not cond)
 
-for name in ["ftc_rbf_white", "dtcvar_ard_data"]:
+for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52"]:
     doc = load(root / "examples" / (name + ".yaml"))
     ref = doc["x-reference"]; tol = ref["tolerance"]
     m = I.from_wire(doc)
@@ -27,10 +27,13 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data"]:
     check(dl <= tol["log_likelihood"] and dm <= tol["mean"] and dv <= tol["var"],
           "%s matches GPy: dLL=%.2g dmean=%.2g dvar=%.2g" % (name, dl, dm, dv))
     back = I.to_wire(m, doc)
-    leaf = back["kernel"]["parts"][0]
-    orig = doc["kernel"]["parts"][0]
-    check(np.allclose(leaf["lengthscale"], orig["lengthscale"], rtol=1e-12)
-          and np.isclose(leaf["variance"], orig["variance"], rtol=1e-12),
+    def leaves(n):
+        return [x for p in n["parts"] for x in leaves(p)] if "parts" in n else [n]
+    lb, lo = leaves(back["kernel"]), leaves(doc["kernel"])
+    check(len(lb) == len(lo) and all(
+              a["type"] == b["type"] and np.isclose(a["variance"], b["variance"], rtol=1e-12)
+              and np.allclose(a.get("lengthscale", 0), b.get("lengthscale", 0), rtol=1e-12)
+              for a, b in zip(lb, lo)),
           "%s kernel round-trips through GPc storage" % name)
     check(np.isclose(back["likelihood"]["variance"], doc["likelihood"]["variance"], rtol=1e-12),
           "%s likelihood variance round-trips" % name)

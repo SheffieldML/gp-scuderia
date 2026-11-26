@@ -17,7 +17,7 @@ def check(cond, msg):
     print(("ok   " if cond else "FAIL ") + msg)
     bad += (not cond)
 
-for name in ["ftc_rbf_white", "dtcvar_ard_data"]:
+for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52"]:
     doc = load(root / "examples" / (name + ".yaml"))
     ref = doc["x-reference"]; tol = ref["tolerance"]
     m = A.from_wire(doc)

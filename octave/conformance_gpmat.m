@@ -9,9 +9,17 @@ bad = 0;
 function r = check(cond, msg)
   printf('%s%s\n', ifelse_(cond, 'ok   ', 'FAIL '), msg); r = ~cond;
 end
+function L = leafList(node)
+if isfield(node, 'parts')
+  L = {};
+  for k = 1:numel(node.parts), L = [L, leafList(node.parts{k})]; end
+else
+  L = {node};
+end
+end
 function v = ifelse_(c, a, b), if c, v = a; else v = b; end, end
 
-names = {'ftc_rbf_white', 'dtcvar_ard_data'};
+names = {'ftc_rbf_white', 'dtcvar_ard_data', 'ftc_prod_matern52', 'fitc_matern52'};
 for i = 1:numel(names)
   n = names{i};
   doc = gpscuderiaRead([root '/examples/' n '.json']);
@@ -23,8 +31,15 @@ for i = 1:numel(names)
   bad += check(dLL <= tol.log_likelihood && dm <= tol.mean && dv <= tol.var, ...
     sprintf('%s matches GPy: dLL=%.2g dmean=%.2g dvar=%.2g', n, dLL, dm, dv));
   back = gpscuderiaFromModel(m, doc);
-  l0 = doc.kernel.parts{1}; l1 = back.kernel.parts{1};
-  bad += check(all(abs(l0.lengthscale(:) - l1.lengthscale(:)) < 1e-12) && abs(l0.variance - l1.variance) < 1e-12, ...
+  L0 = leafList(doc.kernel); L1 = leafList(back.kernel);
+  same = numel(L0) == numel(L1);
+  for k = 1:min(numel(L0), numel(L1))
+    same = same && strcmp(L0{k}.type, L1{k}.type) && abs(L0{k}.variance - L1{k}.variance) < 1e-12;
+    if isfield(L0{k}, 'lengthscale')
+      same = same && all(abs(L0{k}.lengthscale(:) - L1{k}.lengthscale(:)) < 1e-12);
+    end
+  end
+  bad += check(same, ...
     sprintf('%s kernel round-trips through GPmat storage', n));
   bad += check(abs(back.likelihood.variance - doc.likelihood.variance) < 1e-12, ...
     sprintf('%s likelihood variance round-trips', n));
@@ -44,6 +59,6 @@ d = base; d.schema_version = '9.9';
 bad += check(rejects(d), 'rejects unsupported schema_version');
 d = base; d = rmfield(d, 'data');
 bad += check(rejects(d), 'rejects missing data');
-d = base; d.kernel.type = 'kern.prod';
-bad += check(rejects(d), 'rejects kern.prod (not yet supported)');
+d = base; d.kernel.type = 'kern.mystery';
+bad += check(rejects(d), 'rejects unknown kernel type');
 exit(bad > 0);
