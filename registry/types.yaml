@@ -283,3 +283,16 @@ approximations:
   dtcvar: {gpy: true,  gpc: true,  gpmat: true,  gpytorch: true,  gpflow: true,  gpjax: true}
   fitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: true,  gpjax: false}
   pitc:   {gpy: true,  gpc: true,  gpmat: true,  gpytorch: false, gpflow: false, gpjax: false}
+
+# Per-framework verification against the goldens (scripts/check_adapter.py).
+# 'reproduces' lists goldens matched within tolerance; anything else is refused with an explicit error.
+framework_verification:
+  gpflow:
+    reproduces: [ftc_rbf_white, ftc_prod_matern52, ftc_standardize, dtcvar_ard_data, dtcvar_mean_constant]
+    refuses: [fitc_matern52, ftc_icm, ftc_lcm]
+  gpytorch:
+    reproduces: [ftc_prod_matern52, ftc_standardize]
+    refuses: [ftc_rbf_white, dtcvar_ard_data, dtcvar_mean_constant, fitc_matern52, ftc_icm, ftc_lcm]
+  gpjax:
+    reproduces: [ftc_rbf_white, ftc_prod_matern52, ftc_standardize, dtcvar_ard_data, dtcvar_mean_constant]
+    refuses: [fitc_matern52, ftc_icm, ftc_lcm]

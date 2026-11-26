@@ -14,6 +14,12 @@ echo "== GPc =="
 PYTHONPATH="$GPC_PY:$ROOT/python" "$PY" "$ROOT/scripts/conformance_gpc.py" || status=1
 echo "== GPy (to_wire / from_wire) =="
 "${GPY_PY:-$ROOT/.venv-gpy/bin/python}" "$ROOT/scripts/conformance_gpy.py" 2>/dev/null || status=1
+for fw in gpflow gpytorch gpjax; do
+  echo "== $fw adapter =="
+  if [ -x "$ROOT/.venv-$fw/bin/python" ]; then
+    "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/check_adapter.py" $fw 2>/dev/null || status=1
+  else echo "skipped (no .venv-$fw)"; fi
+done
 echo "== GPmat (Octave) =="
 DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-/opt/homebrew/Cellar/hdf5/1.14.5/lib:/opt/homebrew/lib}" \
   octave-cli --quiet "$ROOT/octave/conformance_gpmat.m" || status=1
