@@ -13,6 +13,9 @@ base:
 cases:
   - {id: exact_500}
   - {id: fitc_1000, n: 1000, approximation: fitc, inducing: 30}
+  - id: ard_d10_500
+    input_dim: 10
+    kernel: {type: kern.rbf, variance: 1.0, ARD: true, lengthscale: [0.5, 0.8, 1.2, 2.0, 3.0, 5.0, 8.0, 13.0, 25.0, 50.0]}
   - {id: dtcvar_1000, n: 1000, approximation: dtcvar, inducing: 30}
 tolerance: {log_likelihood: 1.0e-4, mean: 1.0e-5, var: 1.0e-5}
 known:

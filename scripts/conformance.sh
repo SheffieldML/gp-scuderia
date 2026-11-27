@@ -32,6 +32,7 @@ echo "== Framework files (frameworks/*.yaml) =="
 "$GPY_PY" "$ROOT/scripts/check_framework_files.py" || status=1
 echo "== Runner contract (stub framework) =="
 "$GPY_PY" "$ROOT/scripts/check_runner_contract.py" || status=1
+"$GPY_PY" "$ROOT/scripts/check_descriptors.py" || status=1
 echo "== Laplace goldens vs independent numpy implementation =="
 "$GPY_PY" "$ROOT/scripts/check_laplace_independent.py" 2>/dev/null || status=1
 "$GPY_PY" "$ROOT/scripts/check_unsupported_approximations.py" gpy 2>/dev/null || status=1

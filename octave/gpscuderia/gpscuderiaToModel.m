@@ -116,8 +116,11 @@ switch leaf.type
     end
   case 'kern.white', n = 'white';
   case 'kern.bias',  n = 'bias';
-  case 'kern.matern32', n = 'matern32';
-  case 'kern.matern52', n = 'matern52';
+  case {'kern.matern32', 'kern.matern52'}
+    if numel(leaf.lengthscale) > 1
+      error('gpscuderia:unsupported', 'GPmat has no ARD %s kernel', leaf.type);
+    end
+    n = leaf.type(6:end);
   otherwise
     error('gpscuderia:unsupported', 'GPmat adapter: unsupported %s', leaf.type);
 end

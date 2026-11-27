@@ -40,6 +40,9 @@ def make_model(bench, case, index):
     if c.get("x") == "clustered":
         centres = rng.uniform(-3, 3, size=(4, d))
         X = centres[rng.integers(0, 4, n)] + 1e-3 * rng.standard_normal((n, d))
+    elif c.get("x") == "duplicated":
+        base = rng.uniform(-3, 3, size=((n + 1) // 2, d))
+        X = np.repeat(base, 2, axis=0)[:n]
     else:
         X = rng.uniform(-3, 3, size=(n, d))
     Y = np.sin(X.sum(1, keepdims=True)) + 0.1 * rng.standard_normal((n, 1))
@@ -53,6 +56,68 @@ def make_model(bench, case, index):
     return doc, Xnew
 
 
+COND_MAX_N = 4000
+
+
+def _stationary_K(kern, X):
+    """Covariance matrix for rbf, matern32 and matern52 (ARD allowed); None for anything else."""
+    t = kern["type"].split(".")[-1]
+    if t not in ("rbf", "matern32", "matern52") or "parts" in kern:
+        return None
+    ell = np.broadcast_to(np.asarray(kern["lengthscale"], float), (X.shape[1],))
+    Z = X / ell
+    r2 = np.maximum(((Z[:, None, :] - Z[None, :, :]) ** 2).sum(-1), 0.0)
+    r = np.sqrt(r2)
+    v = kern["variance"]
+    if t == "rbf":
+        return v * np.exp(-0.5 * r2)
+    if t == "matern32":
+        return v * (1 + np.sqrt(3) * r) * np.exp(-np.sqrt(3) * r)
+    return v * (1 + np.sqrt(5) * r + 5.0 / 3.0 * r2) * np.exp(-np.sqrt(5) * r)
+
+
+def descriptors(doc, generator=None):
+    """Meta-features of a generated case (CIP-0005). One implementation for every benchmark, so
+    that real tasks and the guide in CIP-0004 can use the same numbers.
+
+    signal_to_noise: kernel variance over noise variance at the generating parameters.
+    lengthscale_over_spacing: median nearest-neighbour distance is measured in units of the
+      lengthscale (per dimension, so ARD is respected) and inverted; large means smooth data.
+    log10_condition: of K + noise I, only for n <= COND_MAX_N and stationary kernels.
+    """
+    X = np.asarray(doc["data"]["X"], float)
+    n, d = X.shape
+    kern = doc["kernel"]
+    noise = doc["likelihood"]["variance"]
+    out = {"n": n, "input_dim": d,
+           "signal_to_noise": float(kern["variance"] / noise) if "variance" in kern else None,
+           "lengthscale_over_spacing": None, "log10_condition": None}
+    if "lengthscale" in kern and "parts" not in kern:
+        ell = np.broadcast_to(np.asarray(kern["lengthscale"], float), (d,))
+        Z = X / ell
+        if n <= COND_MAX_N:
+            D = np.sqrt(((Z[:, None, :] - Z[None, :, :]) ** 2).sum(-1))
+            np.fill_diagonal(D, np.inf)
+            nn = D.min(1)
+        else:
+            idx = np.random.default_rng(0).choice(n, COND_MAX_N, replace=False)
+            D = np.sqrt(((Z[idx][:, None, :] - Z[None, :, :]) ** 2).sum(-1))
+            D[np.arange(len(idx)), idx] = np.inf
+            nn = D.min(1)
+        # duplicated inputs give a zero distance; spacing is then taken over the distinct pairs
+        nn = nn[nn > 0]
+        if len(nn):
+            out["lengthscale_over_spacing"] = float(1.0 / np.median(nn))
+    if n <= COND_MAX_N:
+        K = _stationary_K(kern, X)
+        if K is not None:
+            ev = np.linalg.eigvalsh(K + noise * np.eye(n))
+            out["log10_condition"] = float(np.log10(ev[-1] / max(ev[0], np.finfo(float).tiny)))
+    if generator:
+        out["generator"] = generator
+    return out
+
+
 def generate(out):
     import jsonschema
     from gp_scuderia import gpy_adapter
@@ -62,6 +127,8 @@ def generate(out):
         for i, case in enumerate(bench["cases"]):
             doc, Xnew = make_model(bench, case, i)
             jsonschema.validate(doc, schema)
+            doc["x-descriptors"] = descriptors(doc, {"benchmark": bench["name"], "case": case["id"],
+                                                     "seed": [bench["seed"], i]})
             ref = gpy_adapter.reference(doc, Xnew)
             ref.update(oracle="GPy", tolerance=bench["tolerance"])
             doc["x-reference"] = ref
