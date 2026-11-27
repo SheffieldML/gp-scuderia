@@ -7,7 +7,7 @@ runners:
     versions_from_run: true
     fetch:    # first commit with the FITC log-likelihood fix
       git: https://github.com/SheffieldML/GPmat.git
-      rev: e482881f
+      rev: fb229ee2
     apt: [octave]
 ci:
   modes: [pinned]
