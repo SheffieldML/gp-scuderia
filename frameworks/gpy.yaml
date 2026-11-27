@@ -13,3 +13,4 @@ capabilities:   # the oracle: reproduces every golden
   likelihoods: [gaussian, mixed_gaussian, bernoulli, poisson]
   inference: [exact, laplace]
   extras: [mean.constant, normalizer.center, normalizer.standardize]
+operations: [gradient]      # d log-likelihood / d wire hyperparameter, CIP-0005

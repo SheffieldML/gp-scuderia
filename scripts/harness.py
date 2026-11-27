@@ -37,7 +37,8 @@ def launch(fw, runner, tasks, extra, threads=None):
 
     def once(batch, tag):
         task, out = tmp / (tag + "-task.json"), tmp / (tag + "-result.json")
-        task.write_text(json.dumps({"schema": "gp-scuderia-task/1", "tasks": batch}))
+        v2 = any("operations" in t for t in batch)   # /2 only when it is used, so /1 runners keep working
+        task.write_text(json.dumps({"schema": "gp-scuderia-task/%d" % (2 if v2 else 1), "tasks": batch}))
         if runner["kind"] == "octave":
             cmd = ["octave-cli", "--no-gui", str(root / runner["script"])]
             env.update(GPSCUDERIA_TASK=str(task), GPSCUDERIA_OUT=str(out))

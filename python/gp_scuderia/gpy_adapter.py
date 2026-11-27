@@ -37,7 +37,7 @@ def _kern_from_wire(node, input_dim):
     dims = node.get("active_dims")
     if dims is not None:
         input_dim = len(dims)
-    kw = {"variance": node["variance"]}
+    kw = {"variances": node["variance"]} if t == "kern.linear" else {"variance": node["variance"]}
     if t in ("kern.rbf", "kern.matern32", "kern.matern52"):
         ls = node["lengthscale"]
         ard = bool(node.get("ARD", isinstance(ls, list)))
@@ -147,7 +147,7 @@ def _kern_to_wire(k, input_dim):
     tag = _TAG.get(type(k))
     if tag is None:
         raise WireExportError("unsupported GPy kernel %s" % type(k).__name__)
-    node = {"type": tag, "variance": float(k.variance[0])}
+    node = {"type": tag, "variance": float((k.variances if tag == "kern.linear" else k.variance)[0])}
     if dims != list(range(input_dim)):
         node["active_dims"] = dims
     if tag in ("kern.rbf", "kern.matern32", "kern.matern52"):
@@ -292,3 +292,45 @@ def _laplace_reference(doc, m, Xnew):
     return {"log_likelihood": float(m.log_likelihood()), "Xnew": Xnew.tolist(),
             "mean": mean.tolist(), "var": var.tolist(),
             "latent_mean": mu.tolist(), "latent_var": s2.tolist()}
+
+
+def _kern_gradients(k, node, path, out):
+    """Collect GPy's analytic dLL/dparameter for the leaves of k, mirroring the wire tree."""
+    from .params import LEAF_PARAMS
+    if "parts" in node:
+        for i, (kp, np_) in enumerate(zip(k.parts, node["parts"])):
+            _kern_gradients(kp, np_, "%s.parts.%d" % (path, i), out)
+        return
+    for name in LEAF_PARAMS.get(node["type"], ()):
+        g = np.asarray(getattr(k, "variances" if isinstance(k, GPy.kern.Linear) else name).gradient, float).ravel()   # natural (untransformed) units
+        out["%s.%s" % (path, name)] = g.tolist() if isinstance(node[name], list) else float(g[0])
+
+
+def gradient(doc):
+    """The oracle: analytic dLL/d(wire parameter) from GPy, keyed by wire path (see params.py)."""
+    from .params import wire_paths
+    wire_paths(doc)              # raises UnsupportedByFramework outside the contract
+    m = from_wire(doc)
+    out = {}
+    _kern_gradients(m.kern, doc["kernel"], "kernel", out)
+    out["likelihood.variance"] = float(np.asarray(m.likelihood.variance.gradient).ravel()[0])
+    return out
+
+
+def gradient_fd(doc, rel_step=1e-6):
+    """Central differences of this adapter's own log likelihood; independent of the analytic gradient."""
+    from .params import wire_paths, perturbed
+    out = {}
+    for path, val in wire_paths(doc):
+        def ll(d):
+            return reference(d, doc["x-reference"]["Xnew"])["log_likelihood"]
+        if isinstance(val, list):
+            g = []
+            for i, v in enumerate(val):
+                h = rel_step * max(abs(v), 1e-3)
+                g.append((ll(perturbed(doc, path, h, i)) - ll(perturbed(doc, path, -h, i))) / (2 * h))
+            out[path] = g
+        else:
+            h = rel_step * max(abs(val), 1e-3)
+            out[path] = (ll(perturbed(doc, path, h)) - ll(perturbed(doc, path, -h))) / (2 * h)
+    return out

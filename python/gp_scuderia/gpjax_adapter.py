@@ -31,13 +31,13 @@ def _kern(node, d):
         ls = jnp.array(ls if isinstance(ls, list) else [ls], dtype=jnp.float64)
         if len(dims) > 1 and ls.size == 1:
             ls = jnp.repeat(ls, len(dims))
-        return _LEAF[t](active_dims=dims, lengthscale=ls, variance=float(node["variance"]))
+        return _LEAF[t](active_dims=dims, lengthscale=ls, variance=jnp.asarray(node["variance"], dtype=jnp.float64))
     if t == "kern.white":
-        return gpx.kernels.White(active_dims=dims, variance=float(node["variance"]))
+        return gpx.kernels.White(active_dims=dims, variance=jnp.asarray(node["variance"], dtype=jnp.float64))
     if t == "kern.bias":
-        return gpx.kernels.Constant(active_dims=dims, constant=float(node["variance"]))
+        return gpx.kernels.Constant(active_dims=dims, constant=jnp.asarray(node["variance"], dtype=jnp.float64))
     if t == "kern.linear":
-        return gpx.kernels.Linear(active_dims=dims, variance=float(node["variance"]))
+        return gpx.kernels.Linear(active_dims=dims, variance=jnp.asarray(node["variance"], dtype=jnp.float64))
     raise UnsupportedByFramework("GPJax adapter: %s" % t)
 
 
@@ -48,8 +48,7 @@ def from_wire(doc):
     D = gpx.Dataset(X=X, y=y)
     prior = gpx.gps.Prior(mean_function=gpx.mean_functions.Zero(),
                           kernel=_kern(doc["kernel"], doc["input_dim"]), jitter=JITTER if approx == "dtcvar" else 0.0)
-    lik = gpx.likelihoods.Gaussian(
-                                   obs_stddev=float(np.sqrt(doc["likelihood"]["variance"])))
+    lik = gpx.likelihoods.Gaussian(obs_stddev=jnp.sqrt(jnp.asarray(doc["likelihood"]["variance"], dtype=jnp.float64)))
     post = prior * lik
     if approx == "dtcvar":
         Z = jnp.array(doc["inducing_inputs"], dtype=jnp.float64)
@@ -72,3 +71,26 @@ def reference(doc, Xnew):
     mean = np.asarray(dist.mean)
     var = np.asarray(jnp.diag(dist.covariance_matrix)) + noise
     return reference_from_transformed(doc, float(ll), mean, var, np.asarray(Xn))
+
+
+def gradient(doc):
+    """dLL/d(wire parameter) by jax.grad through from_wire itself.
+
+    The wire values are passed as traced arguments, so the derivative includes GPJax's own
+    parametrisation (the unconstrained bijection, and obs_stddev = sqrt(variance)) with no
+    hand-written chain rule to get wrong.
+    """
+    from .params import wire_paths, node_at
+    wire_paths(doc)
+    theta = {p: jnp.asarray(v, dtype=jnp.float64) for p, v in wire_paths(doc)}
+
+    def objective(theta):
+        d = __import__("copy").deepcopy(doc)
+        for p, v in theta.items():
+            node, key = node_at(d, p)
+            node[key] = list(v) if v.ndim else v
+        post, D, q = from_wire(d)
+        return gpx.objectives.conjugate_mll(post, D) if q is None else gpx.objectives.collapsed_elbo(q, D)
+
+    g = jax.grad(objective)(theta)
+    return {p: (np.asarray(v).tolist() if np.ndim(v) else float(v)) for p, v in g.items()}

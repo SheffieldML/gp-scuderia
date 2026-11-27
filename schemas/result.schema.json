@@ -3,23 +3,155 @@
   "title": "gp-scuderia runner result file",
   "description": "Output of a framework runner: one raw result per task, no tolerances applied.",
   "type": "object",
-  "required": ["schema", "results"],
+  "required": [
+    "schema",
+    "results"
+  ],
   "properties": {
-    "schema": {"const": "gp-scuderia-result/1"},
-    "runtime": {"type": "object", "description": "Free-form runtime identification (versions, interpreter)"},
+    "schema": {
+      "enum": [
+        "gp-scuderia-result/1",
+        "gp-scuderia-result/2"
+      ]
+    },
+    "runtime": {
+      "type": "object",
+      "description": "Free-form runtime identification (versions, interpreter)"
+    },
     "results": {
       "type": "object",
       "additionalProperties": {
         "oneOf": [
-          {"type": "object", "required": ["log_likelihood", "mean", "var"],
-           "properties": {"log_likelihood": {"type": "number"}, "mean": {"type": "array"}, "var": {"type": "array"},
-                          "latent_mean": {"type": "array"}, "latent_var": {"type": "array"},
-                          "timing": {"type": "object", "required": ["seconds_cold", "seconds_median", "seconds_iqr", "repeats"],
-                                     "description": "Present when the task asked for timing; wall-clock seconds.",
-                                     "properties": {"seconds_cold": {"type": "number"}, "seconds_median": {"type": "number"},
-                                                    "seconds_iqr": {"type": "number"}, "repeats": {"type": "integer"}}}}},
-          {"type": "object", "required": ["refused"], "properties": {"refused": {"type": "string"}}},
-          {"type": "object", "required": ["error"], "properties": {"error": {"type": "string"}, "trace": {"type": "string"}}}
+          {
+            "type": "object",
+            "required": [
+              "log_likelihood",
+              "mean",
+              "var"
+            ],
+            "properties": {
+              "log_likelihood": {
+                "type": "number"
+              },
+              "mean": {
+                "type": "array"
+              },
+              "var": {
+                "type": "array"
+              },
+              "latent_mean": {
+                "type": "array"
+              },
+              "latent_var": {
+                "type": "array"
+              },
+              "timing": {
+                "type": "object",
+                "required": [
+                  "seconds_cold",
+                  "seconds_median",
+                  "seconds_iqr",
+                  "repeats"
+                ],
+                "description": "Present when the task asked for timing; wall-clock seconds.",
+                "properties": {
+                  "seconds_cold": {
+                    "type": "number"
+                  },
+                  "seconds_median": {
+                    "type": "number"
+                  },
+                  "seconds_iqr": {
+                    "type": "number"
+                  },
+                  "repeats": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "gradient": {
+                "type": "object",
+                "description": "wire parameter path -> number, or array of numbers for a vector parameter (ARD lengthscales). Derivative of the log likelihood in wire units.",
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gradient"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "refused"
+                  ]
+                },
+                {
+                  "required": [
+                    "log_likelihood"
+                  ]
+                }
+              ]
+            },
+            "properties": {
+              "gradient": {
+                "type": "object",
+                "description": "wire parameter path -> number, or array of numbers for a vector parameter (ARD lengthscales). Derivative of the log likelihood in wire units.",
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "refused"
+            ],
+            "properties": {
+              "refused": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "trace": {
+                "type": "string"
+              }
+            }
+          }
         ]
       }
     }

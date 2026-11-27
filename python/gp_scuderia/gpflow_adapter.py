@@ -61,3 +61,35 @@ def reference(doc, Xnew):
     if isinstance(m, gpflow.models.SGPR):
         ll = m.elbo()
     return reference_from_transformed(doc, ll.numpy(), mean.numpy(), var.numpy(), Xn)
+
+
+def _params(k, node, path, out):
+    from .params import LEAF_PARAMS
+    if "parts" in node:
+        for i, (kp, n) in enumerate(zip(k.kernels, node["parts"])):
+            _params(kp, n, "%s.parts.%d" % (path, i), out)
+        return
+    for name in LEAF_PARAMS[node["type"]]:
+        out["%s.%s" % (path, name)] = k.lengthscales if name == "lengthscale" else k.variance
+
+
+def gradient(doc):
+    """dLL/d(wire parameter): autodiff to GPflow's unconstrained variable, then the chain rule
+    back to the natural value through the parameter's own transform."""
+    from .params import wire_paths
+    wire_paths(doc)
+    m = from_wire(doc)
+    ps = {}
+    _params(m.kernel, doc["kernel"], "kernel", ps)
+    ps["likelihood.variance"] = m.likelihood.variance
+    with tf.GradientTape(persistent=True) as tape:
+        us = {k: p.unconstrained_variable for k, p in ps.items()}
+        nat = {k: tf.convert_to_tensor(p) for k, p in ps.items()}
+        ll = m.elbo() if isinstance(m, gpflow.models.SGPR) else m.log_marginal_likelihood()
+    out = {}
+    for k in ps:
+        dll_du = tape.gradient(ll, us[k])
+        dp_du = tape.gradient(nat[k], us[k])      # elementwise transforms: sum gives the diagonal
+        g = np.atleast_1d((dll_du / dp_du).numpy())
+        out[k] = g.tolist() if g.size > 1 else float(g[0])
+    return out

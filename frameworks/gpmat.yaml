@@ -5,9 +5,9 @@ runners:
     script: octave/gpmat/runGpmat.m
     env: GPMAT
     versions_from_run: true
-    fetch:    # first commit with the FITC log-likelihood fix
+    fetch:    # first commit with the FITC log-likelihood and ftc beta gradient fixes
       git: https://github.com/SheffieldML/GPmat.git
-      rev: e482881f
+      rev: fb229ee2
     apt: [octave]
 ci:
   modes: [pinned]
@@ -17,3 +17,4 @@ capabilities:
   likelihoods: [gaussian]
   inference: [exact]
   extras: [mean.constant, normalizer.center, normalizer.standardize]
+operations: [gradient]      # d log-likelihood / d wire hyperparameter, CIP-0005

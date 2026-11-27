@@ -24,6 +24,7 @@ jobs:
       - run: python scripts/record_check.py results/descriptors.json descriptors "Task descriptors match hand-computed values" -- python scripts/check_descriptors.py
       - run: python scripts/record_check.py results/sparse_checks.json sparse-checks "Sparse property checks can fail - broken DTCVar is caught" -- python scripts/check_sparse_properties.py
       - run: python scripts/record_check.py results/timing_checks.json timing-checks "Timing machinery - grid and tier expansion, in-runner statistics, schemas" -- python scripts/check_timing.py
+      - run: python scripts/record_check.py results/gradient_checks.json gradient-checks "Gradient machinery - oracle against finite differences, wrong chain rule rejected, contract v1 and v2 schemas" -- python scripts/check_gradient.py
       - run: python scripts/compare.py gpy --mode pinned --json results/gpy-pinned.json
       - run: python scripts/benchmarks.py generate --out bench-data --tier pr
       - run: python scripts/benchmarks.py run gpy --data bench-data --mode pinned --json results/bench-gpy-pinned.json
