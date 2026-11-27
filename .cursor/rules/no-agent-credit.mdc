@@ -1,0 +1,13 @@
+---
+description: Never credit AI agents in commits, pull requests or patches
+alwaysApply: true
+---
+
+# No agent credit
+
+Commits, pull requests, patches and files in this repository must not credit an AI agent.
+
+- No `Co-Authored-By`, `Generated-by`, session-link or similar trailers naming an agent or a tool.
+- No "Generated with ..." lines in PR descriptions.
+- The commit author is the human owner of the repository. Do not set an agent as author or committer.
+- Before applying a patch from outside (`git am`), read its headers. If they credit an agent, do not apply it as-is: copy the content you want and commit it under the owner's name.
