@@ -1,7 +1,7 @@
 ---
 id: "2026-11-27_scheduled-workflow"
 title: "Weekly scheduled benchmark workflow"
-status: "Ready"
+status: "In Progress"
 priority: "Low"
 created: "2026-11-27"
 last_updated: "2026-11-27"
@@ -22,7 +22,8 @@ A weekly workflow running the scheduled tier and uploading results as artifacts.
 
 ## Acceptance Criteria
 
-- [ ] Workflow runs on schedule and on manual dispatch; results uploaded.
+- [x] Workflow `benchmarks-scheduled.yml` runs weekly and on manual dispatch; accuracy and timing at the scheduled tier; results and a report uploaded.
+- [ ] First scheduled run observed (cannot be confirmed until the workflow is on main).
 
 ## Related
 
