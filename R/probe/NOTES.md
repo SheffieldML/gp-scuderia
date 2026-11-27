@@ -32,6 +32,30 @@ Matches the goldens `ftc_standardize` and `ftc_rbf_white` to machine precision
   coregionalisation, sparse approximations, non-Gaussian likelihoods. `mean.constant` maps to
   a known `coef.trend` (formula `~1`).
 
-## kergp, GauPro
+## kergp (probe: `R/probe/kergp.R`)
+
+Matches `ftc_standardize` and `ftc_prod_matern52` (`add(prod(matern52, rbf), bias)`, 2-D)
+to ~1e-15 on log-likelihood, mean and latent predictive variance.
+
+- Kernels: `covRadial` with `k1Fun1Gauss`, `k1Fun1Matern3_2`, `k1Fun1Matern5_2`; `theta` is the
+  lengthscale and `sigma2` the variance, equal to the wire kernels with no conversion (Gram
+  agreement 1e-16). `iso = 1` gives one shared lengthscale; `cov = "corr"` gives a unit-variance
+  factor, so a product of two variances is carried once on one factor.
+- Composition: `covComp(~ a() * b() + cc(), where = environment())` expresses `kern.add` and
+  `kern.prod` of distinct kernels. The kernels must be written `a()`; `~ a * b` fails.
+  `kern.bias` is a constant `covMan` kernel (`function(x1, x2, par) par[1]`).
+- Fixed parameters: `gp(..., estim = FALSE, varNoise = v, beta = b)` does no estimation. It leaves
+  `logLik` as NA, but the log-likelihood follows from `fit$L` and `fit$sseStar`:
+  `-0.5 (n log 2 pi + 2 sum log diag L + sseStar)`.
+- Noise and prediction: `varNoise` is added to the diagonal. `predict(type = "SK")$sd^2` is the
+  latent variance without noise (the runner adds noise back). `forceInterp = TRUE` returns the
+  observation with zero variance at training inputs, so the runner must keep the default `FALSE`.
+- Mean: a known `beta` (formula `~ 1`, `beta = c`) maps `mean.constant`; zero mean is `beta = 0`.
+  Standardise needs the `-n log s` Jacobian added, as for DiceKriging.
+- Not yet checked: `kern.white` (a diagonal `covMan` would need the same fold-or-refuse decision),
+  ARD (`iso = 0`), and active dimensions. Still refuse: coregionalisation, sparse approximations,
+  non-Gaussian likelihoods.
+
+## GauPro
 
 Not yet probed.
