@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gp-scuderia runner result file",
+  "description": "Output of a framework runner: one raw result per task, no tolerances applied.",
+  "type": "object",
+  "required": ["schema", "results"],
+  "properties": {
+    "schema": {"const": "gp-scuderia-result/1"},
+    "runtime": {"type": "object", "description": "Free-form runtime identification (versions, interpreter)"},
+    "results": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {"type": "object", "required": ["log_likelihood", "mean", "var"],
+           "properties": {"log_likelihood": {"type": "number"}, "mean": {"type": "array"}, "var": {"type": "array"},
+                          "latent_mean": {"type": "array"}, "latent_var": {"type": "array"}}},
+          {"type": "object", "required": ["refused"], "properties": {"refused": {"type": "string"}}},
+          {"type": "object", "required": ["error"], "properties": {"error": {"type": "string"}, "trace": {"type": "string"}}}
+        ]
+      }
+    }
+  }
+}
