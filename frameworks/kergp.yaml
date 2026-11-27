@@ -1,0 +1,22 @@
+name: kergp
+runners:
+  - id: r
+    kind: r
+    script: R/kergp/runKergp.R
+    install: {pinned: ci/pinned-r.txt, latest: ci/latest-r.txt}
+    versions_from_run: true
+ci:
+  modes: [pinned, latest]
+  unsupported_check: true      # everything outside exact Gaussian regression is refused, not substituted
+capabilities:
+  approximations: [ftc]
+  kernels:
+    - {rbf: {options: [multi_input]}}       # no ARD yet in the runner
+    - {matern32: {options: [multi_input]}}
+    - {matern52: {options: [multi_input]}}
+    - bias                       # a constant covMan kernel
+    - add
+    - prod
+  likelihoods: [gaussian]
+  inference: [exact]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

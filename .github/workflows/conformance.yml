@@ -62,13 +62,24 @@ jobs:
         with: {python-version: "3.11"}
       - if: matrix.kind == 'python'
         run: pip install -r ${{ matrix.install }}
+      - if: matrix.kind == 'r'
+        uses: r-lib/actions/setup-r@v2
+        with: {use-public-rspm: true}
+      - if: matrix.kind == 'r'
+        run: |
+          pip install numpy pyyaml jsonschema
+          mkdir -p "$HOME/rlib"
+          echo "R_LIBS_USER=$HOME/rlib" >> "$GITHUB_ENV"
+          R_LIBS_USER="$HOME/rlib" Rscript R/install.R ${{ matrix.install }}
       - if: matrix.kind == 'octave'
         run: |
           pip install numpy pyyaml jsonschema
           sudo apt-get update && sudo apt-get install -y octave
           python scripts/ci_fetch.py ${{ matrix.framework }} fetched
       - run: python scripts/compare.py ${{ matrix.framework }} --mode ${{ matrix.mode }} --json results/${{ matrix.framework }}-${{ matrix.mode }}.json
-      - if: matrix.unsupported_check
+      - if: matrix.unsupported_check && matrix.kind == 'r'
+        run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "outside the exact Gaussian slice is refused, not substituted" -- python scripts/check_r_refusals.py ${{ matrix.framework }}
+      - if: matrix.unsupported_check && matrix.kind == 'python'
         run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "dtc and pitc are refused, not substituted" -- python scripts/check_unsupported_approximations.py ${{ matrix.framework }}
       - uses: actions/download-artifact@v4
         with: {name: bench-data, path: bench-data}
