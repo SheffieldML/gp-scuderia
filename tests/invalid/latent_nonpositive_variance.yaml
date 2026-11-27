@@ -1,0 +1,55 @@
+# Must be rejected: q(X) variance must be strictly positive.
+schema_version: '0.1'
+type: models.bayesian_gplvm
+approximation: dtcvar
+inducing_inputs:
+- - 0.0
+  - 0.0
+- - 1.0
+  - 0.5
+kernel:
+  type: kern.rbf
+  variance: 1.0
+  lengthscale:
+  - 1.0
+  - 2.0
+  ARD: true
+likelihood:
+  type: likelihoods.gaussian
+  variance: 0.05
+latent:
+  dim: 2
+  mean:
+  - - 0.1
+    - -0.2
+  - - 0.4
+    - 0.3
+  - - -0.5
+    - 0.8
+  - - 0.9
+    - -0.1
+  variance:
+  - - 0.3
+    - 0.3
+  - - 0.0
+    - 0.4
+  - - 0.5
+    - 0.1
+  - - 0.3
+    - 0.3
+  prior:
+    type: standard_normal
+data:
+  Y:
+  - - 0.2
+    - 0.1
+    - -0.3
+  - - 0.5
+    - 0.4
+    - 0.0
+  - - -0.1
+    - 0.7
+    - 0.2
+  - - 0.3
+    - -0.2
+    - 0.6

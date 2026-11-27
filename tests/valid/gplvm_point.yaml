@@ -1,0 +1,17 @@
+# Schema-only positive fixture: point-estimate GP-LVM (CIP-0006).
+schema_version: "0.1"
+type: models.gplvm
+approximation: ftc
+kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+likelihood: {type: likelihoods.gaussian, variance: 0.05}
+latent:
+  dim: 2
+  mean:
+  - [0.1, -0.2]
+  - [0.4, 0.3]
+  - [-0.5, 0.8]
+data:
+  Y:
+  - [0.2, 0.1]
+  - [0.5, 0.4]
+  - [-0.1, 0.7]

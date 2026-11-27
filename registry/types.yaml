@@ -344,6 +344,19 @@ reserved_inference:
   vi:    {native: [gpflow, gpjax, gpytorch, gpy], notes: "Stores variational.{family,whiten,inducing_inputs,q_mean,q_chol}. GPy via core.SVGP, to be confirmed."}
   mcmc:  {native: [gpflow, gpjax, gpy],          notes: "Stores prior and mcmc.samples. GPy via its HMC sampler, to be confirmed."}
 
+# Model types reserved by CIP-0006 (GP-LVM tier). The schema accepts them, but
+# they are not in `types` until a second implementation reproduces a
+# GPy-generated golden, as for approximations. 'native' lists frameworks believed
+# to have a class (not yet checked against the pinned versions in ci/); everything
+# else raises UnsupportedByFramework.
+reserved_models:
+  models.gplvm:
+    native: [gpy, gpc, gpmat]
+    notes: "Point-estimate GP-LVM: latent.mean only. GPy GPLVM, GPc CGplvm, GPmat gplvm."
+  models.bayesian_gplvm:
+    native: [gpy, gpc, gpmat, gpflow, gpytorch]
+    notes: "Collapsed Bayesian GP-LVM (Titsias and Lawrence 2010), diagonal q(X), standard normal prior. GPy BayesianGPLVM, GPc CBayesGplvm, GPmat vargplvm. GPflow and GPyTorch classes to be confirmed. GPJax: none."
+
 # Options a framework file may claim per type (frameworks/*.yaml). A bare name in
 # a framework's capabilities claims every option; `name: {options: [...]}` claims
 # only those listed. A golden exercises an option when its document uses it
