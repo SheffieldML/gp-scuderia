@@ -56,6 +56,16 @@ to ~1e-15 on log-likelihood, mean and latent predictive variance.
   ARD (`iso = 0`), and active dimensions. Still refuse: coregionalisation, sparse approximations,
   non-Gaussian likelihoods.
 
-## GauPro
+## GauPro (probe: `R/probe/gaupro.R`)
 
-Not yet probed.
+Matches `ftc_standardize` and an `ftc_rbf_white` variant with `mean.constant = 1.5` to ~1e-15.
+
+- Kernels: `Gaussian`, `Matern32`, `Matern52` with `s2` the variance and `theta = 10^beta`.
+  `beta = -log10(2 l^2)` for `Gaussian`; `beta = -2 log10(l)` for the Matérns (Gram agreement 1e-16).
+- Fixed parameters: `GauPro_kernel_model$new(..., param.est = FALSE, nug.est = FALSE, normalize = FALSE)`.
+  The nugget is relative: `K = s2 (R + nug I)`, so `nug = noise / variance`; `nug.min` must be
+  lowered (1e-12) for small noise.
+- Mean: `trend_0$new()` for zero mean, `trend_c$new(m = c, m_est = FALSE)` for `mean.constant`.
+- Likelihood: `model$loglikelihood()` is the full Gaussian value; add `-n log s` for standardise.
+- Prediction: `predict(se.fit = TRUE)$s2` already includes the noise, unlike `DiceKriging` and `kergp`.
+- Not yet checked: composite kernels (`*`, `+` on kernel objects), ARD, active dimensions, gradients.
