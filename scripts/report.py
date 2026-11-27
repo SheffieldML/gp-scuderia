@@ -14,6 +14,7 @@ docs = [json.loads(p.read_text()) for p in sorted(pathlib.Path(a.results).rglob(
 comps = [d for d in docs if "framework" in d]
 checks = [d for d in docs if "check" in d]
 benches = [d for d in docs if "benchmark_run" in d]
+timings = [d for d in docs if "timing_run" in d]
 cols = sorted({(d["framework"], d["mode"]) for d in comps})
 goldens = sorted({r["golden"] for d in comps for r in d["results"]})
 by = {(d["framework"], d["mode"], r["golden"]): r for d in comps for r in d["results"]}
@@ -84,6 +85,71 @@ if benches:
         md += ["", "Known mismatches:", ""] + ["- %s / %s: %s" % k for k in kn]
     for f, m, r in bench_bad:
         md.append("- **UNEXPECTED %s (%s) / %s**: %s" % (f, m, r["name"], r.get("reason", "")))
+def sparse_tables():
+    """Per framework: log likelihood of DTCVar and FITC against the exact value, by inducing set size."""
+    out = []
+    for d in sorted(benches, key=lambda d: d["benchmark_framework"]):
+        for name, t in (d.get("sparse") or {}).items():
+            if t["exact"] is None:
+                continue
+            fmt = lambda v: "-" if v is None else "%.4f" % v
+            out.append((d["benchmark_framework"], name, t["exact"],
+                        [(r["M"], fmt(r["dtcvar"] is not None and r["dtcvar"] - t["exact"] or None),
+                          fmt(r["fitc_gap"])) for r in t["rows"]]))
+    return out
+
+
+if sparse_tables():
+    md += ["", "## Sparse approximation: gap to the exact log likelihood", "",
+           "Reported, not asserted: log likelihood of each approximation minus the exact value, by number of "
+           "inducing points M (nested sets). DTCVar is a lower bound, so its gap is at most zero.", ""]
+    for f, name, ex, rows in sparse_tables():
+        md += ["**%s** (%s, exact = %.4f)" % (f, name, ex), "", "| M | DTCVar - exact | FITC - exact |", "|---|---|---|"]
+        md += ["| %d | %s | %s |" % r for r in rows] + [""]
+def timing_tables():
+    """benchmark -> (columns, rows). A column is (framework, threads); a row is a case, in size order.
+    A cell is (median seconds, ratio to the fastest framework in that row at the same thread setting)."""
+    out = {}
+    for b in sorted({r["benchmark"] for d in timings for r in d["results"]}):
+        cols = sorted({(d["benchmark_framework"], d["threads"]) for d in timings
+                       if any(r["benchmark"] == b and r["status"] == "timed" for r in d["results"])},
+                      key=lambda c: (c[1] != "1", c[0]))
+        cells = {}
+        for d in timings:
+            for r in d["results"]:
+                if r["benchmark"] == b and r["status"] == "timed":
+                    cells[(r["case"], d["benchmark_framework"], d["threads"])] = (r["seconds_median"], r["seconds_iqr"], r["sane"], r["n"], r["input_dim"])
+        cases = sorted({c for c, _, _ in cells}, key=lambda c: next(v[3:] for k, v in cells.items() if k[0] == c))
+        rows = []
+        for c in cases:
+            best = {}
+            for (cc, f, th), v in cells.items():
+                if cc == c:
+                    best[th] = min(best.get(th, v[0]), v[0])
+            rows.append((c, [(cells.get((c, f, th)), best.get(th)) for f, th in cols]))
+        out[b] = (cols, rows)
+    return out
+
+
+def tcell(v):
+    if v[0] is None:
+        return "-"
+    (med, iqr, sane, *_), best = v
+    return "%.3gs (x%.1f)%s" % (med, med / best, "" if sane else " !")
+
+
+if timings:
+    hw = timings[0]["hardware"]
+    md += ["", "## Timing (informational; never gates the build)", "",
+           "Median wall-clock seconds to build the model from the wire document, evaluate the log likelihood and predict, "
+           "with the ratio to the fastest framework in the row at the same thread setting. `1` is capped to one thread "
+           "(best effort through environment variables), `all` is uncapped. `!` marks a log likelihood far from the "
+           "reference, so the speed is not comparing like with like. Tier: %s. Hardware: %s, %s logical CPUs, numpy BLAS %s, %s." % (
+               ", ".join(sorted({d["tier"] for d in timings})), hw["processor"] or hw["machine"], hw["logical_cpus"],
+               hw["numpy_blas"], hw["dtype"]), ""]
+    for b, (cols, rows) in timing_tables().items():
+        md += ["**%s**" % b, "", "| case | %s |" % " | ".join("%s (%s thr)" % c for c in cols), "|---|%s|" % "|".join("---" for _ in cols)]
+        md += ["| %s | %s |" % (c, " | ".join(tcell(v) for v in vs)) for c, vs in rows] + [""]
 if checks:
     md += ["", "## Other checks", "", "| check | result | seconds | description |", "|---|---|---|---|"]
     for c in checks:
@@ -125,6 +191,16 @@ if benches:
             row += '<td class="%s" title="%s">%s</td>' % (cls, html.escape((r or {}).get("reason", "")), bcell(r))
         h.append("<tr><td>%s</td>%s</tr>" % (n, row))
     h.append("</table>")
+for f, name, ex, rows in sparse_tables():
+    h.append("<h2>Sparse gap: %s (%s)</h2><table><tr><th>M</th><th>DTCVar - exact</th><th>FITC - exact</th></tr>%s</table>" % (
+        f, name, "".join("<tr><td>%d</td><td>%s</td><td>%s</td></tr>" % r for r in rows)))
+if timings:
+    h.append("<h2>Timing</h2><p>Informational; never gates the build. Median seconds (ratio to the fastest framework at the same thread setting).</p>")
+    for b, (cols, rows) in timing_tables().items():
+        h.append("<h3>%s</h3><table><tr><th>case</th>%s</tr>" % (b, "".join("<th>%s<br>%s thr</th>" % c for c in cols)))
+        for c, vs in rows:
+            h.append("<tr><td>%s</td>%s</tr>" % (c, "".join("<td>%s</td>" % tcell(v) for v in vs)))
+        h.append("</table>")
 if checks:
     h.append("<h2>Other checks</h2><table><tr><th>check</th><th>result</th><th>s</th><th>description</th></tr>")
     for c in checks:

@@ -6,7 +6,7 @@ here = fileparts(mfilename('fullpath'));
 root = getenv('GPSCUDERIA_ROOT'); if isempty(root), root = fileparts(fileparts(here)); end
 gp_dir = getenv('GPML'); if isempty(gp_dir), error('Set GPML to a GPML checkout.'); end
 evalc('run(fullfile(gp_dir, ''startup.m''))');
-addpath(here);
+addpath(here); addpath(fullfile(root, 'octave', 'gpscuderia'));
 task = jsondecode(fileread(getenv('GPSCUDERIA_TASK')));
 files = task.tasks;
 res = struct();
@@ -17,7 +17,10 @@ for i = 1:numel(files)
   doc.data.X = reshape(doc.data.X, size(doc.data.X, 1), []);
   try
     if isfield(doc, 'inducing_inputs'), doc.inducing_inputs = reshape(doc.inducing_inputs, size(doc.inducing_inputs, 1), []); end
-    evalc('r = gpmlReference(doc);');
+    t0 = tic; evalc('r = gpmlReference(doc);'); cold = toc(t0);
+    if isfield(files(i), 'timing') && ~isempty(files(i).timing)
+      r.timing = timeEval(@() gpmlEvalQuiet(doc), files(i).timing, cold);
+    end
     res.(name) = r;
   catch err
     if strcmp(err.identifier, 'gpscuderia:unsupported')

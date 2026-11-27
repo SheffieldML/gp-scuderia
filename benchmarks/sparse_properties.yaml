@@ -1,0 +1,40 @@
+name: sparse_properties
+kind: property
+description: >
+  Properties a sparse approximation must have whatever the numbers are, checked across a family
+  of cases that share data and nested inducing sets Z16 in Z32 in ... in Z512. Asserted: DTCVar is
+  a lower bound on the exact log likelihood, and does not fall when the inducing set grows.
+  Reported only: how far FITC sits from the exact value and how both curves converge in M.
+  Every case is also compared with the GPy reference like any accuracy case.
+seed: 3
+shared_data: true
+base:
+  n: 2000
+  input_dim: 2
+  noise: 0.1
+  approximation: ftc
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+cases:
+  - {id: exact}
+  - {id: dtcvar_16,  approximation: dtcvar, inducing: 16}
+  - {id: dtcvar_32,  approximation: dtcvar, inducing: 32}
+  - {id: dtcvar_64,  approximation: dtcvar, inducing: 64}
+  - {id: dtcvar_128, approximation: dtcvar, inducing: 128}
+  - {id: dtcvar_256, approximation: dtcvar, inducing: 256}
+  - {id: dtcvar_512, approximation: dtcvar, inducing: 512}
+  - {id: fitc_16,  approximation: fitc, inducing: 16}
+  - {id: fitc_32,  approximation: fitc, inducing: 32}
+  - {id: fitc_64,  approximation: fitc, inducing: 64}
+  - {id: fitc_128, approximation: fitc, inducing: 128}
+  - {id: fitc_256, approximation: fitc, inducing: 256}
+  - {id: fitc_512, approximation: fitc, inducing: 512}
+properties:
+  exact: exact
+  sizes: [16, 32, 64, 128, 256, 512]
+  slack: 1.0e-5
+  rel_slack: 1.0e-8
+tolerance: {log_likelihood: 1.0e-4, mean: 1.0e-5, var: 1.0e-5}
+known:
+  gpflow: {dtcvar_16: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_32: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_64: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_128: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_256: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_512: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error"}
+  gpjax: {dtcvar_16: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_32: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_64: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_128: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_256: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_512: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error"}
+  gpmat: {dtcvar_16: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_32: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_64: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_128: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_256: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_512: "Kuu jitter: GPy matches an independent numpy DTCVar with jitter 1e-8; this framework matches it with 1e-6 (checked to 1e-12 at M=16). Convention difference, not a formula error", dtcvar_lower_bound: "intermittent: GPmat DTCVar exceeds the exact value by 5e-3 at M=512 where Kuu is ill conditioned; its value there differs from the 1e-6-jitter result of gpflow and gpjax, so jitter handling in GPmat differs; not yet diagnosed. Whether it exceeds depends on the machine (it held on one hosted runner and failed on another with the same commit), so a pass is accepted too"}

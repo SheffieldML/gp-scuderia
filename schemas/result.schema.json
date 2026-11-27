@@ -13,7 +13,11 @@
         "oneOf": [
           {"type": "object", "required": ["log_likelihood", "mean", "var"],
            "properties": {"log_likelihood": {"type": "number"}, "mean": {"type": "array"}, "var": {"type": "array"},
-                          "latent_mean": {"type": "array"}, "latent_var": {"type": "array"}}},
+                          "latent_mean": {"type": "array"}, "latent_var": {"type": "array"},
+                          "timing": {"type": "object", "required": ["seconds_cold", "seconds_median", "seconds_iqr", "repeats"],
+                                     "description": "Present when the task asked for timing; wall-clock seconds.",
+                                     "properties": {"seconds_cold": {"type": "number"}, "seconds_median": {"type": "number"},
+                                                    "seconds_iqr": {"type": "number"}, "repeats": {"type": "integer"}}}}},
           {"type": "object", "required": ["refused"], "properties": {"refused": {"type": "string"}}},
           {"type": "object", "required": ["error"], "properties": {"error": {"type": "string"}, "trace": {"type": "string"}}}
         ]

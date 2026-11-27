@@ -13,9 +13,11 @@ for i = 1:numel(files)
   name = files(i).name; golden = files(i).golden;
   try
     doc = gpscuderiaRead(golden);
-    evalc('m = gpscuderiaToModel(doc);');
-    g = gpscuderiaReference(m, doc.x_reference.Xnew);
+    t0 = tic; evalc('m = gpscuderiaToModel(doc);'); g = gpscuderiaReference(m, doc.x_reference.Xnew); cold = toc(t0);
     res.(name) = struct('log_likelihood', g.logLikelihood, 'mean', g.mean(:)', 'var', g.var(:)');
+    if isfield(files(i), 'timing') && ~isempty(files(i).timing)
+      res.(name).timing = timeEval(@() gpscuderiaEvalQuiet(doc), files(i).timing, cold);
+    end
   catch err
     if ~isempty(strfind(err.identifier, 'gpscuderia:unsupported'))
       res.(name) = struct('refused', err.message);

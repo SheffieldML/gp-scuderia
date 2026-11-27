@@ -1,0 +1,22 @@
+name: timing_sparse
+kind: timing
+description: >
+  Wall-clock cost of the sparse approximations (DTCVar and FITC) at fixed inducing-set sizes as n grows.
+  Answers: where does each framework's sparse path overtake its exact path, and how fast is it?
+  Frameworks without an approximation skip it. Accuracy tolerance is a sanity check only.
+seed: 12
+base:
+  n: 1000
+  input_dim: 2
+  noise: 0.1
+  inducing: 32
+  approximation: dtcvar
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+grid:
+  n: [1000, 4000, 16000]
+  inducing: [32, 128]
+  approximation: [dtcvar, fitc]
+tiers:
+  pr: {n: [1000, 4000], inducing: [32]}
+timing: {repeats: 5, warmup: 1}
+tolerance: {log_likelihood: 5.0, mean: 1.0e-2, var: 1.0e-2}

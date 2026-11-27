@@ -14,7 +14,13 @@ def versions(runner):
     return out
 
 
-def launch(fw, runner, tasks, extra):
+THREAD_VARS = {"OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1",
+               "VECLIB_MAXIMUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1",
+               "TF_NUM_INTRAOP_THREADS": "1", "TF_NUM_INTEROP_THREADS": "1",
+               "XLA_FLAGS": "--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1"}
+
+
+def launch(fw, runner, tasks, extra, threads=None):
     """Run tasks through the process-level contract (task file in, result file out).
 
     A crash of the whole process triggers one isolated retry per task, so one bad golden
@@ -24,6 +30,8 @@ def launch(fw, runner, tasks, extra):
     tmp = pathlib.Path(tempfile.mkdtemp())
     env = dict(os.environ, GPSCUDERIA_ROOT=str(root),
                PYTHONPATH=os.pathsep.join(filter(None, [str(root / "python"), os.environ.get("PYTHONPATH")])))
+    if threads == 1:        # best effort: the variables the numerical libraries in use are known to honour
+        env.update(THREAD_VARS)
     if runner["kind"] == "octave" and not os.environ.get(runner["env"]):
         raise SystemExit("Set %s to a %s checkout." % (runner["env"], fw))
 

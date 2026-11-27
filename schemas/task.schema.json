@@ -15,7 +15,14 @@
         "additionalProperties": false,
         "properties": {
           "name": {"type": "string"},
-          "golden": {"type": "string", "description": "Path to the golden (JSON twin for Octave runners)"}
+          "golden": {"type": "string", "description": "Path to the golden (JSON twin for Octave runners)"},
+          "timing": {
+            "type": "object",
+            "description": "Optional. Time the evaluation (build model from the golden, log likelihood and prediction): one cold call, then warmup untimed calls, then repeats timed calls. The result then carries timing.",
+            "required": ["repeats"],
+            "additionalProperties": false,
+            "properties": {"repeats": {"type": "integer", "minimum": 1}, "warmup": {"type": "integer", "minimum": 0}}
+          }
         }
       }
     }

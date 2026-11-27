@@ -77,7 +77,9 @@ def reference(doc, Xnew):
     model, lik = from_wire(doc)
     Xn = np.array(Xnew, float)
     model.train(); lik.train()
-    with gpytorch.settings.cholesky_jitter(1e-12, 1e-12):
+    # max_cholesky_size: above 800 points GPyTorch switches to conjugate gradients and stochastic
+    # log-determinants, which is an approximation; a conformance reference must be the exact value.
+    with gpytorch.settings.cholesky_jitter(1e-12, 1e-12), gpytorch.settings.max_cholesky_size(10 ** 9):
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(lik, model)
         ll = mll(model(*model.train_inputs), model.train_targets).item() * len(model.train_targets)
         model.eval(); lik.eval()

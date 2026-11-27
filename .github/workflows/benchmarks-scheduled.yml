@@ -1,0 +1,78 @@
+name: benchmarks-scheduled
+# The scheduled tier of the benchmark suite (CIP-0005): every grid case, accuracy and timing,
+# for every framework. Results are uploaded as artifacts and summarised in a report. Timing never
+# gates; accuracy failures are visible in the report and in the job status.
+on:
+  schedule:
+    - cron: "43 2 * * 0"   # weekly, Sunday morning
+  workflow_dispatch:
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install pyyaml
+      - id: m
+        run: python scripts/ci_matrix.py --github-output
+
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r ci/pinned-gpy.txt
+      - run: python scripts/benchmarks.py generate --out bench-data --tier scheduled
+      - uses: actions/upload-artifact@v4
+        with: {name: bench-data, path: bench-data}
+
+  frameworks:
+    needs: [matrix, generate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    continue-on-error: ${{ matrix.mode == 'latest' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - if: matrix.kind == 'python'
+        run: pip install -r ${{ matrix.install }}
+      - if: matrix.kind == 'octave'
+        run: |
+          pip install numpy pyyaml jsonschema
+          sudo apt-get update && sudo apt-get install -y octave
+          python scripts/ci_fetch.py ${{ matrix.framework }} fetched
+      - uses: actions/download-artifact@v4
+        with: {name: bench-data, path: bench-data}
+      - run: python scripts/benchmarks.py run ${{ matrix.framework }} --data bench-data --mode ${{ matrix.mode }} --json results/bench-${{ matrix.framework }}-${{ matrix.mode }}.json
+      - name: Timing, scheduled tier
+        continue-on-error: true
+        run: |
+          python scripts/benchmarks.py time ${{ matrix.framework }} --data bench-data --tier scheduled --threads 1 --json results/time-${{ matrix.framework }}-${{ matrix.mode }}-1.json
+          python scripts/benchmarks.py time ${{ matrix.framework }} --data bench-data --tier scheduled --threads all --json results/time-${{ matrix.framework }}-${{ matrix.mode }}-all.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "results-${{ matrix.framework }}-${{ matrix.mode }}", path: results}
+
+  report:
+    needs: [frameworks]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - uses: actions/download-artifact@v4
+        with: {path: all-results, pattern: "results-*", merge-multiple: true}
+      - run: pip install pyyaml
+      - run: python scripts/report.py all-results --out report | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: benchmark-report, path: report}
