@@ -26,6 +26,8 @@ Add in-runner timing with warmup, the scaling benchmark, hardware recording and 
 
 ## Related
 
+- CIP: 0005 (proposed) defines the benchmark files this task would build; if it is accepted, extend the acceptance criteria accordingly. Until then the task is the single scaling benchmark.
+
 - CIP: 0003 (gp-scuderia)
 
 ## Progress Updates
