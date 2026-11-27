@@ -5,7 +5,7 @@ runners:
     script: octave/gpmat/runGpmat.m
     env: GPMAT
     versions_from_run: true
-    fetch:    # first commit with the FITC log-likelihood fix
+    fetch:    # first commit with the FITC log-likelihood and ftc beta gradient fixes
       git: https://github.com/SheffieldML/GPmat.git
       rev: fb229ee2
     apt: [octave]
