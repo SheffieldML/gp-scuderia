@@ -92,8 +92,32 @@ jobs:
         if: always()
         with: {name: results-gpc, path: results}
 
+  gpml:
+    # GPML under Octave: an independent MATLAB-lineage implementation (CIP-0002).
+    # continue-on-error until it has been green once on ubuntu-latest.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install numpy pyyaml jsonschema
+      - run: sudo apt-get update && sudo apt-get install -y octave
+      - name: Fetch GPML (checksum-verified)
+        run: |
+          . ci/gpml.txt
+          curl -fsSL -o gpml.zip "$url"
+          echo "$sha256  gpml.zip" | sha256sum -c -
+          unzip -q gpml.zip -d gpml
+          echo "GPML_VERSION=$version" >> "$GITHUB_ENV"
+          echo "GPML=$(echo $PWD/gpml/gpml-matlab-*)" >> "$GITHUB_ENV"
+      - run: python scripts/compare.py gpml --json results/gpml.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: results-gpml, path: results}
+
   report:
-    needs: [oracle, frameworks, gpc]
+    needs: [oracle, frameworks, gpc, gpml]
     if: always()
     runs-on: ubuntu-latest
     steps:

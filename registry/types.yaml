@@ -360,3 +360,5 @@ framework_verification:
     refuses: []   # the oracle reproduces every golden
   gpc:
     refuses: []
+  gpml:
+    refuses: [dtcvar_ard_data, dtcvar_mean_constant, ftc_icm, ftc_lcm]   # no DTCVAR bound, no coregionalisation

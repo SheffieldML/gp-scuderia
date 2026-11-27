@@ -1,0 +1,4 @@
+# GPML (Rasmussen and Nickisch) is fetched, not vendored, and verified against this checksum.
+version=4.2
+url=http://gaussianprocess.org/gpml/code/matlab/release/gpml-matlab-v4.2-2018-06-11.zip
+sha256=0232bf431b427d5151a8e2a955af6079f3818dc205ac25f73c0d94c6e234b277
