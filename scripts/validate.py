@@ -48,7 +48,7 @@ def load(path):
     return json.loads(text) if path.suffix == ".json" else yaml.safe_load(text)
 
 
-for path in sorted((root / "examples").glob("*.*")):
+for path in sorted([*(root / "examples").glob("*.*"), *(root / "examples/latent").glob("*.*")]):
     doc = load(path)
     errs = sorted(validator.iter_errors(doc), key=lambda e: list(e.path))
     used = {doc["type"], doc["likelihood"]["type"], *tags(doc["kernel"])}

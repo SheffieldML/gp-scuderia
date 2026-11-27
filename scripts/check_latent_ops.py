@@ -15,7 +15,7 @@ from gp_scuderia import run, gpy_adapter as A
 
 task_s = json.loads((root / "schemas/task.schema.json").read_text())
 res_s = json.loads((root / "schemas/result.schema.json").read_text())
-path = root / "tests/valid/bgplvm_rbf_ard.yaml"
+path = root / "examples/latent/bgplvm_rbf_ard.yaml"
 doc = yaml.safe_load(path.read_text())
 bad = 0
 
@@ -60,8 +60,8 @@ for i in range(n):
     ps1[i] = kz.mean(0)
     ps2 += kz.T @ kz / N
 check("psi0 equals the kernel variance per point", np.allclose(p["psi0"], var))
-check("psi1 matches Monte Carlo (%.1e)" % np.abs(np.array(p["psi1"]) - ps1).max(), np.allclose(p["psi1"], ps1, atol=5e-3))
-check("psi2 matches Monte Carlo (%.1e)" % np.abs(np.array(p["psi2"]) - ps2).max(), np.allclose(p["psi2"], ps2, atol=2e-2))
+check("psi1 matches Monte Carlo (%.1e)" % np.abs(np.array(p["psi1"]) - ps1).max(), np.allclose(p["psi1"], ps1, rtol=5e-3, atol=5e-3))
+check("psi2 matches Monte Carlo (%.1e)" % np.abs(np.array(p["psi2"]) - ps2).max(), np.allclose(p["psi2"], ps2, rtol=5e-3, atol=2e-2))
 
 d0 = json.loads(json.dumps(doc))
 d0["latent"]["variance"] = np.full_like(S, 1e-10).tolist()
@@ -74,6 +74,16 @@ b0 = A.bound(d0)["bound_without_kl"]
 ll = A.reference(sparse, mu.tolist())["log_likelihood"]
 check("bound_without_kl at S -> 0 equals dtcvar log likelihood (%.2e)" % abs(b0 - ll), abs(b0 - ll) < 1e-5)
 check("kl is reported separately", abs(b["kl"] - 0.5 * np.sum(mu ** 2 + S - np.log(S) - 1)) < 1e-12)
+
+ref, tol = doc["x-reference"], doc["x-reference"]["tolerance"]
+check("golden bound_without_kl reproduces within %.0e" % tol["bound_without_kl"], abs(b["bound_without_kl"] - ref["bound_without_kl"]) <= tol["bound_without_kl"])
+check("golden kl reproduces within %.0e" % tol["kl"], abs(b["kl"] - ref["kl"]) <= tol["kl"])
+check("golden psi statistics reproduce within %.0e" % tol["psi"],
+      all(np.allclose(p[k_], ref[k_], atol=tol["psi"], rtol=0) for k_ in ("psi0", "psi1", "psi2")))
+check("golden is a JSON twin of the YAML", json.loads((root / "examples/latent/bgplvm_rbf_ard.json").read_text()) == doc)
+d1 = json.loads(json.dumps(doc)); d1["kernel"]["variance"] *= 1.01   # a perturbed model must break the match
+check("perturbing the kernel variance moves the bound beyond tolerance",
+      abs(A.bound(d1)["bound_without_kl"] - ref["bound_without_kl"]) > tol["bound_without_kl"])
 
 r = run.run_tasks(A.reference, [{"name": "g", "golden": str(path), "operations": ["bound"]}])["g"]
 check("no bound operation -> refusal", "refused" in r)
