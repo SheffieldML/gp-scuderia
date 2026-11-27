@@ -1,7 +1,7 @@
 ---
 id: "2026-11-27_descriptors"
 title: "Task descriptors in generated cases"
-status: "Ready"
+status: "Completed"
 priority: "High"
 created: "2026-11-27"
 last_updated: "2026-11-27"

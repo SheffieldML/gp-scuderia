@@ -22,6 +22,7 @@ jobs:
       - run: python scripts/record_check.py results/framework_files.json framework-files "Framework files valid; derived expectations match the snapshot in both directions" -- python scripts/check_framework_files.py
       - run: python scripts/record_check.py results/runner_contract.json runner-contract "Runner contract: schemas, crash isolation, per-task errors" -- python scripts/check_runner_contract.py
       - run: python scripts/record_check.py results/descriptors.json descriptors "Task descriptors match hand-computed values" -- python scripts/check_descriptors.py
+      - run: python scripts/record_check.py results/sparse_checks.json sparse-checks "Sparse property checks can fail: broken DTCVar is caught" -- python scripts/check_sparse_properties.py
       - run: python scripts/compare.py gpy --mode pinned --json results/gpy-pinned.json
       - run: python scripts/benchmarks.py generate --out bench-data
       - run: python scripts/benchmarks.py run gpy --data bench-data --mode pinned --json results/bench-gpy-pinned.json

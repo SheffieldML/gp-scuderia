@@ -19,6 +19,6 @@ cases:
   - {id: dtcvar_1000, n: 1000, approximation: dtcvar, inducing: 30}
 tolerance: {log_likelihood: 1.0e-4, mean: 1.0e-5, var: 1.0e-5}
 known:
-  gpflow: {dtcvar_1000: "differs from the GPy reference by about 1e-2; cause not yet diagnosed (inducing point handling or jitter)"}
-  gpjax: {dtcvar_1000: "differs from the GPy reference by about 1e-2; cause not yet diagnosed (inducing point handling or jitter)"}
-  gpmat: {dtcvar_1000: "differs from the GPy reference by about 1e-2; cause not yet diagnosed (inducing point handling or jitter)"}
+  gpflow: {dtcvar_1000: "differs from the GPy reference by about 1e-2; same mechanism as sparse_properties, where it was traced to the Kuu jitter (1e-6 here, 1e-8 in GPy) against an independent numpy implementation"}
+  gpjax: {dtcvar_1000: "differs from the GPy reference by about 1e-2; same mechanism as sparse_properties, where it was traced to the Kuu jitter (1e-6 here, 1e-8 in GPy) against an independent numpy implementation"}
+  gpmat: {dtcvar_1000: "differs from the GPy reference by about 1e-2; same mechanism as sparse_properties, where it was traced to the Kuu jitter (1e-6 here, 1e-8 in GPy) against an independent numpy implementation"}

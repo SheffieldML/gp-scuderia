@@ -35,7 +35,8 @@ def benchmarks():
 def make_model(bench, case, index):
     """A wire model for one case. The seed depends on benchmark seed and case index only."""
     c = deep_merge(bench["base"], {k: v for k, v in case.items() if k != "id"})
-    rng = np.random.default_rng([bench["seed"], index])
+    shared = bench.get("shared_data", False)   # every case sees the same data and nested inducing sets
+    rng = np.random.default_rng([bench["seed"], 0 if shared else index])
     n, d = c["n"], c["input_dim"]
     if c.get("x") == "clustered":
         centres = rng.uniform(-3, 3, size=(4, d))
@@ -50,6 +51,12 @@ def make_model(bench, case, index):
            "approximation": c["approximation"], "kernel": c["kernel"],
            "likelihood": {"type": "likelihoods.gaussian", "variance": c["noise"]},
            "data": {"X": X.tolist(), "Y": Y.tolist()}}
+    if shared:
+        perm = rng.permutation(n)               # drawn for every case, so the prefixes are nested
+        Xnew = rng.uniform(-3, 3, size=(5, d)).tolist()
+        if c.get("inducing"):
+            doc["inducing_inputs"] = X[perm[:c["inducing"]]].tolist()
+        return doc, Xnew
     if c.get("inducing"):
         doc["inducing_inputs"] = X[rng.choice(n, c["inducing"], replace=False)].tolist()
     Xnew = rng.uniform(-3, 3, size=(5, d)).tolist()
@@ -118,6 +125,45 @@ def descriptors(doc, generator=None):
     return out
 
 
+def check_properties(bench, ll):
+    """Properties of a family of cases (CIP-0005), from the log likelihoods a framework returned.
+
+    ll maps case id to log likelihood, with None for a case the framework did not run. Asserted:
+    each DTCVar value is a lower bound on the exact value, and DTCVar does not decrease as the
+    nested inducing set grows. Reported only: the FITC minus exact gap and both curves in M, which
+    describe approximation quality but are not guaranteed by theory.
+    Returns (records, table); a record is {property, status, ok, reason}.
+    """
+    p = bench["properties"]; exact = ll.get(p["exact"])
+    # roundoff allowance: absolute, plus relative to the size of the log likelihood (GPy's own
+    # DTCVar exceeds the exact value by 4e-6 at M=512, n=2000, where |LL| is about 2000)
+    slack = p.get("slack", 1e-6) + p.get("rel_slack", 1e-8) * abs(exact if exact is not None else 0.0)
+    sizes = p["sizes"]
+    dv = {m: ll.get("dtcvar_%d" % m) for m in sizes}
+    ft = {m: ll.get("fitc_%d" % m) for m in sizes}
+    recs = []
+
+    def rec(name, status, reason=""):
+        recs.append({"benchmark": bench["name"], "case": name, "name": "%s__%s" % (bench["name"], name),
+                     "status": status, "ok": status in ("match", "skipped"), "reason": reason})
+    have = [m for m in sizes if dv[m] is not None]
+    if exact is None or not have:
+        rec("dtcvar_lower_bound", "skipped", "needs the exact case and at least one DTCVar case")
+    else:
+        viol = [(m, dv[m] - exact) for m in have if dv[m] > exact + slack]
+        rec("dtcvar_lower_bound", "mismatch" if viol else "match",
+            "DTCVar exceeds the exact log likelihood at M=%s by %s" % tuple(map(str, (viol[0][0], "%.3g" % viol[0][1]))) if viol else "")
+    if len(have) < 2:
+        rec("dtcvar_monotone_in_M", "skipped", "needs at least two DTCVar cases")
+    else:
+        viol = [(a, b, dv[a] - dv[b]) for a, b in zip(have, have[1:]) if dv[b] < dv[a] - slack]
+        rec("dtcvar_monotone_in_M", "mismatch" if viol else "match",
+            "DTCVar falls from M=%d to M=%d by %.3g" % viol[0] if viol else "")
+    table = {"exact": exact, "rows": [{"M": m, "dtcvar": dv[m], "fitc": ft[m],
+             "fitc_gap": (ft[m] - exact) if ft[m] is not None and exact is not None else None} for m in sizes]}
+    return recs, table
+
+
 def generate(out):
     import jsonschema
     from gp_scuderia import gpy_adapter
@@ -183,9 +229,28 @@ def run(fw, data, mode, json_out):
         dev = rec.get("deviation")
         print("%-5s %-34s %-8s %s" % ("ok" if rec["ok"] else "FAIL", n, rec["status"],
               ("max dev/tol = %.2g" % max(dev[k] / rec["tolerance"][k] for k in dev)) if dev else rec.get("reason", "")[:80]))
+    sparse = {}
+    for b in benchmarks():
+        if "properties" not in b:
+            continue
+        lls = {}
+        for r_ in results:
+            if r_["benchmark"] == b["name"]:
+                g = raw.get(r_["name"])
+                lls[r_["case"]] = g["log_likelihood"] if g and "log_likelihood" in g else None
+        recs, table = check_properties(b, lls)
+        for r_ in recs:
+            k = known.get((fw, r_["name"]))
+            if k and r_["status"] == "mismatch":
+                r_.update(status="known", reason=k, ok=True)
+            elif k and r_["status"] == "match":
+                r_.update(ok=False, reason="known failure now holds; remove it from the benchmark")
+            bad += not r_["ok"]
+            print("%-5s %-34s %-8s %s" % ("ok" if r_["ok"] else "FAIL", r_["name"], r_["status"], r_["reason"][:80]))
+        results.extend(recs); sparse[b["name"]] = table
     doc = {"benchmark_run": True, "framework": None, "benchmark_framework": fw, "mode": mode,
            "python": platform.python_version(), "versions": {**versions(rn), **extra},
-           "seconds": round(time.time() - t0, 2), "results": results}
+           "seconds": round(time.time() - t0, 2), "results": results, "sparse": sparse}
     del doc["framework"]
     if json_out:
         pathlib.Path(json_out).parent.mkdir(parents=True, exist_ok=True)

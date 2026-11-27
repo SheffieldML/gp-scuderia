@@ -84,6 +84,27 @@ if benches:
         md += ["", "Known mismatches:", ""] + ["- %s / %s: %s" % k for k in kn]
     for f, m, r in bench_bad:
         md.append("- **UNEXPECTED %s (%s) / %s**: %s" % (f, m, r["name"], r.get("reason", "")))
+def sparse_tables():
+    """Per framework: log likelihood of DTCVar and FITC against the exact value, by inducing set size."""
+    out = []
+    for d in sorted(benches, key=lambda d: d["benchmark_framework"]):
+        for name, t in (d.get("sparse") or {}).items():
+            if t["exact"] is None:
+                continue
+            fmt = lambda v: "-" if v is None else "%.4f" % v
+            out.append((d["benchmark_framework"], name, t["exact"],
+                        [(r["M"], fmt(r["dtcvar"] is not None and r["dtcvar"] - t["exact"] or None),
+                          fmt(r["fitc_gap"])) for r in t["rows"]]))
+    return out
+
+
+if sparse_tables():
+    md += ["", "## Sparse approximation: gap to the exact log likelihood", "",
+           "Reported, not asserted: log likelihood of each approximation minus the exact value, by number of "
+           "inducing points M (nested sets). DTCVar is a lower bound, so its gap is at most zero.", ""]
+    for f, name, ex, rows in sparse_tables():
+        md += ["**%s** (%s, exact = %.4f)" % (f, name, ex), "", "| M | DTCVar - exact | FITC - exact |", "|---|---|---|"]
+        md += ["| %d | %s | %s |" % r for r in rows] + [""]
 if checks:
     md += ["", "## Other checks", "", "| check | result | seconds | description |", "|---|---|---|---|"]
     for c in checks:
@@ -125,6 +146,9 @@ if benches:
             row += '<td class="%s" title="%s">%s</td>' % (cls, html.escape((r or {}).get("reason", "")), bcell(r))
         h.append("<tr><td>%s</td>%s</tr>" % (n, row))
     h.append("</table>")
+for f, name, ex, rows in sparse_tables():
+    h.append("<h2>Sparse gap: %s (%s)</h2><table><tr><th>M</th><th>DTCVar - exact</th><th>FITC - exact</th></tr>%s</table>" % (
+        f, name, "".join("<tr><td>%d</td><td>%s</td><td>%s</td></tr>" % r for r in rows)))
 if checks:
     h.append("<h2>Other checks</h2><table><tr><th>check</th><th>result</th><th>s</th><th>description</th></tr>")
     for c in checks:
