@@ -23,7 +23,10 @@ Golden `bgplvm_rbf_ard` with GPy reference values, then benchmarks gplvm_bound_a
 ## Acceptance Criteria
 
 - [x] Golden (examples/latent/bgplvm_rbf_ard) with GPy oracle for bound_without_kl, kl and psi statistics
-- [ ] gplvm_collapse_to_sparse: S to 0 reproduces the dtcvar log likelihood at inputs mu
+- [x] gplvm_bound_agreement, gplvm_collapse_to_sparse and psi_statistics added (GPy passes all 13 cases)
+- [x] gplvm_collapse_to_sparse: S to 0 reproduces the dtcvar log likelihood at inputs mu
+- [ ] gplvm_gradient_agreement (needs a latent gradient oracle and wire paths for mu, S, Z)
+- [ ] gplvm_timing (scheduled tier)
 - [ ] Each benchmark meets the CIP-0005 admission rule and the latent-gauge rule
 
 ## Related
@@ -37,3 +40,6 @@ Created from the accepted CIP-0006.
 
 ### 2026-11-27
 In Progress. Golden added under `examples/latent/` with GPy values; `scripts/check_latent_ops.py` verifies it. Benchmarks remain.
+
+### 2026-11-27 (later)
+Added `gplvm_bound_agreement`, `gplvm_collapse_to_sparse` and `psi_statistics`. The psi oracle is a 48-node Gauss-Hermite quadrature; 24 nodes left 1e-7 in psi2, which the generator's GPy cross-check caught. Frameworks without a `bound` or `psi` operation in their framework file are skipped. Gradient and timing remain.

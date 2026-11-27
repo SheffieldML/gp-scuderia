@@ -215,6 +215,112 @@ def gradient_deviation(g, ref, tol):
     return worst, None
 
 
+LATENT_KINDS = {"latent_bound": "bound", "latent_collapse": "bound", "psi": "psi"}   # kind -> runner operation
+
+
+def make_latent_model(bench, case, index):
+    """A wire Bayesian GP-LVM at fixed q(X), Z and parameters (CIP-0006). The seed depends on the
+    benchmark seed and case index only. `s_value` fixes S (the collapse limit); `s_range` sets its range."""
+    c = deep_merge(bench["base"], {k: v for k, v in case.items() if k != "id"})
+    rng = np.random.default_rng([bench["seed"], index])
+    n, q, d, m = c["n"], c["latent_dim"], c["output_dim"], c["inducing"]
+    mu = rng.standard_normal((n, q))
+    lo, hi = c.get("s_range", [0.1, 0.6])
+    S = rng.uniform(lo, hi, (n, q))
+    if "s_value" in c:
+        S = np.full((n, q), float(c["s_value"]))
+    Z = rng.standard_normal((m, q))
+    Y = np.sin(mu @ rng.standard_normal((q, d))) + 0.1 * rng.standard_normal((n, d))
+    return {"schema_version": "0.1", "type": "models.bayesian_gplvm", "approximation": "dtcvar",
+            "inducing_inputs": Z.tolist(), "kernel": c["kernel"],
+            "likelihood": {"type": "likelihoods.gaussian", "variance": c["noise"]},
+            "latent": {"dim": q, "mean": mu.tolist(), "variance": S.tolist(), "prior": {"type": "standard_normal"}},
+            "data": {"Y": Y.tolist()}}
+
+
+def latent_descriptors(doc, generator):
+    """Meta-features of a latent case. Gauge-free: sizes and signal-to-noise only."""
+    k = doc["kernel"]
+    return {"n": len(doc["latent"]["mean"]), "latent_dim": doc["latent"]["dim"],
+            "output_dim": len(doc["data"]["Y"][0]), "inducing": len(doc["inducing_inputs"]),
+            "signal_to_noise": float(k["variance"] / doc["likelihood"]["variance"]), "generator": generator}
+
+
+def _kernel_fn(kern):
+    """k(X, Z) for the kernels with a quadrature oracle: rbf (ARD allowed) and linear."""
+    t = kern["type"].split(".")[-1]
+    v = kern["variance"]
+    if t == "rbf":
+        ell = np.asarray(kern["lengthscale"], float)
+        return lambda A, B: v * np.exp(-0.5 * (((A[..., :, None, :] - B[None, :, :]) / ell) ** 2).sum(-1))
+    if t == "linear":
+        return lambda A, B: v * np.einsum("...ik,jk->...ij", A, B)
+    raise SystemExit("no quadrature oracle for kernel %s" % kern["type"])
+
+
+def gauss_hermite_psi(doc, nodes=48):
+    """psi0, psi1 and psi2 as expectations of the kernel under q(X), by tensor Gauss-Hermite
+    quadrature. Independent of every framework: it uses only the kernel and q(X)."""
+    mu, S = np.asarray(doc["latent"]["mean"], float), np.asarray(doc["latent"]["variance"], float)
+    Z = np.asarray(doc["inducing_inputs"], float)
+    n, q = mu.shape
+    if q > 3:
+        raise SystemExit("Gauss-Hermite oracle limited to latent dimension 3")
+    t, w = np.polynomial.hermite.hermgauss(nodes)
+    w = w / np.sqrt(np.pi)
+    grid = np.array(list(itertools.product(range(nodes), repeat=q)))
+    T, W = t[grid], np.prod(w[grid], axis=1)            # (G, q), (G,)
+    k = _kernel_fn(doc["kernel"])
+    psi0, psi1, psi2 = np.zeros(n), np.zeros((n, len(Z))), np.zeros((len(Z), len(Z)))
+    for i in range(n):
+        X = mu[i] + np.sqrt(2 * S[i]) * T                 # (G, q)
+        Kxz = k(X, Z)                                      # (G, m)
+        psi1[i] = W @ Kxz
+        psi2 += (Kxz * W[:, None]).T @ Kxz
+        if doc["kernel"]["type"].endswith("rbf"):
+            psi0[i] = doc["kernel"]["variance"]
+        else:
+            psi0[i] = W @ (doc["kernel"]["variance"] * (X ** 2).sum(1))
+    return {"psi0": psi0, "psi1": psi1, "psi2": psi2}
+
+
+def latent_reference(bench, doc):
+    """Oracle reference for a latent case, refused if its independent cross-check fails."""
+    from gp_scuderia import gpy_adapter
+    kind = bench["kind"]
+    if kind == "latent_bound":
+        ref = gpy_adapter.bound(doc); ref["oracle"] = "GPy"
+    elif kind == "latent_collapse":
+        mu = doc["latent"]["mean"]
+        sparse = {"schema_version": "0.1", "type": "models.sparse_gp_regression", "input_dim": doc["latent"]["dim"],
+                  "output_dim": len(doc["data"]["Y"][0]), "approximation": "dtcvar",
+                  "inducing_inputs": doc["inducing_inputs"], "kernel": doc["kernel"], "likelihood": doc["likelihood"],
+                  "data": {"X": mu, "Y": doc["data"]["Y"]}}
+        ll = gpy_adapter.reference(sparse, [[0.0] * doc["latent"]["dim"]])["log_likelihood"]
+        own = gpy_adapter.bound(doc)["bound_without_kl"]
+        if abs(own - ll) > 1e-6:
+            raise SystemExit("GPy's latent bound %.10g differs from its sparse GP %.10g in the collapse limit" % (own, ll))
+        ref = {"bound_without_kl": ll, "oracle": "GPy sparse GP (dtcvar) at inputs mu; no psi statistic involved"}
+    else:
+        gh, gp = gauss_hermite_psi(doc), gpy_adapter.psi(doc)
+        worst = max(float(np.max(np.abs(gh[k] - np.asarray(gp[k])))) for k in gh)
+        if worst > 1e-7:
+            raise SystemExit("GPy psi statistics differ from Gauss-Hermite by %.3g" % worst)
+        ref = {k: v.tolist() for k, v in gh.items()}
+        ref.update(oracle="Gauss-Hermite quadrature, 48 nodes per dimension (cross-checked against GPy to 1e-7)",
+                   oracle_gpy_maxabs=worst)
+    ref["tolerance"] = bench["tolerance"]
+    return ref
+
+
+def latent_deviation(kind, g, ref):
+    """{quantity: worst absolute deviation} between a framework's result and the reference."""
+    if kind == "psi":
+        p = g["psi"]
+        return {k: float(np.max(np.abs(np.asarray(p[k], float) - np.asarray(ref[k], float)))) for k in ("psi0", "psi1", "psi2")}
+    return {k: abs(g["bound"][k] - ref[k]) for k in ("bound_without_kl", "kl") if k in ref}
+
+
 def generate(out, tier=None):
     import jsonschema
     from gp_scuderia import gpy_adapter
@@ -223,6 +329,17 @@ def generate(out, tier=None):
     for bench in benchmarks():
         for i, case in enumerate(bench["cases"]):
             if tier and "tiers" in case and tier not in case["tiers"]:
+                continue
+            if bench.get("kind") in LATENT_KINDS:
+                doc = make_latent_model(bench, case, i)
+                jsonschema.validate(doc, schema)
+                doc["x-descriptors"] = latent_descriptors(doc, {"benchmark": bench["name"], "case": case["id"],
+                                                                "seed": [bench["seed"], i]})
+                doc["x-benchmark-kind"] = bench["kind"]
+                doc["x-reference"] = latent_reference(bench, doc)
+                p = out / ("%s__%s.yaml" % (bench["name"], case["id"]))
+                dump(doc, p); to_json_twin(p)
+                print("generated", p.stem)
                 continue
             doc, Xnew = make_model(bench, case, i)
             jsonschema.validate(doc, schema)
@@ -317,12 +434,16 @@ def run(fw, data, mode, json_out):
         why = F.missing(framework["_caps"], docs[n])
         if not why and gradient_kind(n) and "gradient" not in framework.get("operations", []):
             why = ["the framework file declares no gradient operation"]
+        kind = docs[n].get("x-benchmark-kind")
+        if not why and kind in LATENT_KINDS and LATENT_KINDS[kind] not in framework.get("operations", []):
+            why = ["the framework file declares no %s operation" % LATENT_KINDS[kind]]
         return why
     runnable = [n for n in names if not skip_reason(n)]
     extra = {}
     t0 = time.time()
     raw = launch(fw, rn, [dict({"name": n, "golden": str(data / (n + ".json"))},
-                               **({"operations": ["gradient"]} if gradient_kind(n) else {})) for n in runnable], extra) if runnable else {}
+                               **({"operations": ["gradient"]} if gradient_kind(n) else
+                                  {"operations": [LATENT_KINDS[docs[n]["x-benchmark-kind"]]]} if docs[n].get("x-benchmark-kind") in LATENT_KINDS else {})) for n in runnable], extra) if runnable else {}
     results, bad = [], 0
     for n in names:
         ref = docs[n]["x-reference"]; tol = ref["tolerance"]
@@ -337,6 +458,10 @@ def run(fw, data, mode, json_out):
                 rec.update(status="refused", reason=g["refused"])
             elif "error" in g:
                 rec.update(status="error", reason=g["error"])
+            elif docs[n].get("x-benchmark-kind") in LATENT_KINDS:
+                dev = latent_deviation(docs[n]["x-benchmark-kind"], g, ref)
+                tl = {k: tol.get(k, tol.get("psi")) for k in dev}
+                rec.update(deviation=dev, tolerance=tl, status="match" if all(dev[k] <= tl[k] for k in dev) else "mismatch")
             elif gradient_kind(n):
                 worst, why_not = gradient_deviation(g["gradient"], ref["gradient"], tol["gradient"])
                 rec.update(deviation={"gradient": worst}, tolerance={"gradient": 1.0},

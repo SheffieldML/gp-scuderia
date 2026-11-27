@@ -1,0 +1,22 @@
+name: gplvm_bound_agreement
+kind: latent_bound
+description: >
+  The collapsed Bayesian GP-LVM bound without its KL term, and the KL term, at a fixed q(X), Z,
+  kernel and noise (CIP-0006). The oracle is GPy. Only quantities that do not depend on the
+  latent gauge are compared; latent coordinates never are. Kernels are those with closed-form
+  psi statistics in GPc: RBF, RBF with ARD, and linear.
+seed: 61
+base:
+  n: 30
+  latent_dim: 3
+  output_dim: 4
+  inducing: 8
+  noise: 0.1
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.2}
+cases:
+  - {id: rbf}
+  - {id: rbf_ard, kernel: {type: kern.rbf, variance: 1.5, lengthscale: [0.8, 1.4, 2.0], ARD: true}}
+  - {id: linear, kernel: {type: kern.linear, variance: 0.8}}
+  - {id: small_noise, noise: 1.0e-2}
+  - {id: wide_posterior, s_range: [0.5, 1.5]}
+tolerance: {bound_without_kl: 1.0e-4, kl: 1.0e-8}

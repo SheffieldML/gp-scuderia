@@ -1,0 +1,24 @@
+name: psi_statistics
+kind: psi
+description: >
+  psi0 (per point), psi1 (n by m) and psi2 (m by m, summed over points) against a Gauss-Hermite
+  quadrature of the kernel under q(X) (CIP-0006). Latent dimension is at most 3, where 48 nodes
+  per dimension integrate these Gaussian-smooth integrands to better than 1e-12 (24 nodes leave
+  1e-7 in psi2, so the node count is a measured choice, not a default). The reference
+  is the quadrature, not a framework; the generator refuses to emit a case in which GPy's
+  closed-form psi statistics differ from it by more than 1e-7.
+seed: 63
+base:
+  n: 20
+  latent_dim: 3
+  output_dim: 2
+  inducing: 6
+  noise: 0.1
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.2}
+cases:
+  - {id: rbf}
+  - {id: rbf_ard, kernel: {type: kern.rbf, variance: 1.5, lengthscale: [0.8, 1.4, 2.0], ARD: true}}
+  - {id: linear, kernel: {type: kern.linear, variance: 0.8}}
+  - {id: q1, latent_dim: 1, kernel: {type: kern.rbf, variance: 1.0, lengthscale: 0.7}}
+  - {id: wide_posterior, s_range: [0.5, 1.5]}
+tolerance: {psi: 1.0e-6}

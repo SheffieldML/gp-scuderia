@@ -89,4 +89,13 @@ r = run.run_tasks(A.reference, [{"name": "g", "golden": str(path), "operations":
 check("no bound operation -> refusal", "refused" in r)
 r = run.run_tasks(A.reference, [{"name": "g", "golden": str(path), "operations": ["bound", "psi"]}], None, A.bound, A.psi)["g"]
 check("bound and psi together -> refusal", "refused" in r)
+
+# The benchmark comparison must fail on a wrong answer, or a passing run proves nothing.
+sys.path.insert(0, str(root / "scripts"))
+import benchmarks as B
+bad_psi = {"psi": {k_: (np.asarray(v_) * 1.001).tolist() for k_, v_ in p.items()}}
+dev = B.latent_deviation("psi", bad_psi, ref)
+check("psi comparison flags a 0.1% error", all(dev[k_] > tol["psi"] for k_ in ("psi1", "psi2")))
+dev = B.latent_deviation("latent_bound", {"bound": {"bound_without_kl": b["bound_without_kl"] + 1e-2, "kl": b["kl"]}}, ref)
+check("bound comparison flags an error of 1e-2", dev["bound_without_kl"] > tol["bound_without_kl"] and dev["kl"] == 0)
 sys.exit(1 if bad else 0)
