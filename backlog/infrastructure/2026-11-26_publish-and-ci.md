@@ -39,3 +39,6 @@ Task created from CIP-0001 (Accepted).
 ### 2026-11-26
 
 Repository was already public with one commit; pushed main (`b1a8f5b`). Added `.github/workflows/conformance.yml` (jobs `oracle` and `gpc`), `requirements-gpy.txt` (pinned oracle), and made `scripts/conformance.sh` take tool locations from `GPC_ROOT`, `PYTHON`, `GPY_PY`, `GPMAT` and skip sections whose tool is unset. Untracked committed `.pyc` files. CI is not yet confirmed green: the `gpc` job checks out the GPc branch `cip0016-interchange-adapter`, which exists only locally, so that job fails until the branch is pushed or merged.
+
+### 2026-11-26 (live comparison CI)
+Added `scripts/compare.py` (per-golden status, deviations and versions as JSON), `scripts/record_check.py`, `scripts/report.py` (writes `report.md` and `report.html`), pinned and latest requirement files under `ci/`, and a workflow with `oracle`, `frameworks` (gpflow, gpytorch, gpjax), `frameworks-latest` (weekly canary), `gpc` and an aggregating `report` job. Verified locally; not yet run on GitHub. Still open: an Octave/GPmat job.

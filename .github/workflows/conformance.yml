@@ -2,6 +2,11 @@ name: conformance
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "17 5 * * 1"   # weekly canary against the latest releases
+  workflow_dispatch:
+env:
+  GPC_REF: cip0016-interchange-adapter   # GPc branch that carries CInterchange
 jobs:
   oracle:
     # Schema validation and the checks that need only the pinned GPy oracle.
@@ -10,16 +15,56 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
-      - run: pip install -r requirements-gpy.txt
-      - run: python scripts/validate.py
-      - run: python scripts/conformance_gpy.py
-      - run: python scripts/check_laplace_independent.py
-      - run: python scripts/check_unsupported_approximations.py gpy
-  gpc:
-    # GPc C++ reader and CLI against the goldens. GPC_REF names the GPc branch that carries CInterchange.
+      - run: pip install -r ci/pinned-gpy.txt
+      - run: python scripts/record_check.py results/validate.json validate "Goldens satisfy the JSON schema" -- python scripts/validate.py
+      - run: python scripts/record_check.py results/conformance_gpy.json gpy-roundtrip "GPy export/import round trip" -- python scripts/conformance_gpy.py
+      - run: python scripts/record_check.py results/laplace_independent.json laplace-independent "Laplace goldens against an independent numpy implementation" -- python scripts/check_laplace_independent.py
+      - run: python scripts/compare.py gpy --mode pinned --json results/gpy-pinned.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: results-oracle, path: results}
+
+  frameworks:
+    # Each framework is installed fresh and run live against every golden.
+    # Pinned versions here; the frameworks-latest job below detects upstream drift.
     runs-on: ubuntu-latest
-    env:
-      GPC_REF: cip0016-interchange-adapter
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [gpflow, gpytorch, gpjax]
+        mode: [pinned]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r ci/${{ matrix.mode }}-${{ matrix.framework }}.txt
+      - run: python scripts/compare.py ${{ matrix.framework }} --mode ${{ matrix.mode }} --json results/${{ matrix.framework }}-${{ matrix.mode }}.json
+      - run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "dtc and pitc are refused, not substituted" -- python scripts/check_unsupported_approximations.py ${{ matrix.framework }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "results-${{ matrix.framework }}-${{ matrix.mode }}", path: results}
+
+  frameworks-latest:
+    if: github.event_name != 'push' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true   # upstream drift is news, not a broken build
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [gpy, gpflow, gpytorch, gpjax]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r ci/latest-${{ matrix.framework }}.txt
+      - run: python scripts/compare.py ${{ matrix.framework }} --mode latest --json results/${{ matrix.framework }}-latest.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "results-${{ matrix.framework }}-latest", path: results}
+
+  gpc:
+    # GPc C++ reader and CLI, plus the GPc Python package, against the goldens.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -27,7 +72,30 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y gfortran libopenblas-dev liblapack-dev
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
-      - run: pip install -r requirements-gpy.txt
+      - run: pip install -r ci/pinned-gpy.txt
       - run: cp gpc/make.linux gpc/make.inc
-      - run: GPC_ROOT=$PWD/gpc sh -c 'cd $GPC_ROOT && make testInterchange gp' 
-      - run: GPC_ROOT=$PWD/gpc PYTHON=python sh scripts/conformance.sh
+      - run: cd gpc && make testInterchange gp
+      - run: GPC_ROOT=$PWD/gpc PYTHON=python python scripts/record_check.py results/gpc-cli.json gpc-cli "GPc C++ reader, CLI and Laplace round trip" -- sh scripts/conformance.sh
+      - run: pip install ./gpc/python
+        continue-on-error: true
+      - run: python scripts/compare.py gpc --mode pinned --json results/gpc-pinned.json
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: results-gpc, path: results}
+
+  report:
+    needs: [oracle, frameworks, gpc]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - uses: actions/download-artifact@v4
+        with: {path: all-results, pattern: "results-*", merge-multiple: true}
+      - run: pip install pyyaml
+      - run: python scripts/report.py all-results --out report | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: conformance-report, path: report}

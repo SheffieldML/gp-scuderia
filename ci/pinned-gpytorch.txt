@@ -1,0 +1,6 @@
+gpytorch==1.15.2
+torch==2.15.0
+numpy==2.4.6
+scipy==1.17.1
+PyYAML==6.0.4
+jsonschema==4.26.0

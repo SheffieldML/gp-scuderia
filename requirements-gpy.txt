@@ -1,7 +1,0 @@
-# Pinned GPy oracle environment (verified 2026-11-26). Goldens' x-reference is generated with this.
-GPy==1.13.2
-paramz==0.9.6
-numpy==1.26.4
-scipy==1.12.0
-PyYAML==6.0.4
-jsonschema==4.26.0

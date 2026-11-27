@@ -38,7 +38,7 @@ Task created from CIP-0001 (Accepted).
 ## Progress Updates
 
 ### 2026-11-26
-Completed. `scripts/check_adapter.py <fw>` checks each adapter against every golden.
+Completed. `scripts/compare.py <fw>` checks each adapter against every golden.
 - GPflow: reproduces ftc and dtcvar goldens; refuses fitc and coregionalisation.
 - GPyTorch: reproduces `ftc_prod_matern52` and `ftc_standardize`; refuses `kern.white`, sparse approximations and coregionalisation.
 - GPJax: as GPflow. Needs jitter 0 for ftc (1e-6 breaks the 1e-7 mean tolerance) and 1e-6 for the sparse bound.

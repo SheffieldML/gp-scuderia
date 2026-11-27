@@ -33,7 +33,7 @@ echo "== Laplace goldens vs independent numpy implementation =="
 for fw in gpflow gpytorch gpjax; do
   echo "== $fw adapter =="
   if [ -x "$ROOT/.venv-$fw/bin/python" ]; then
-    "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/check_adapter.py" $fw 2>/dev/null || status=1
+    "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/compare.py" $fw || status=1
     "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/check_unsupported_approximations.py" $fw 2>/dev/null || status=1
   else echo "skipped (no .venv-$fw)"; fi
 done

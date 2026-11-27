@@ -1,0 +1,11 @@
+gpjax==1.1.0
+jax==0.10.2
+jaxlib==0.10.2
+optax==0.2.9
+numpyro==0.22.0
+beartype==0.23.1
+jaxtyping==0.3.11
+numpy==2.4.6
+scipy==1.17.1
+PyYAML==6.0.4
+jsonschema==4.26.0
