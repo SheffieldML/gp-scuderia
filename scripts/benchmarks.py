@@ -327,6 +327,8 @@ def run(fw, data, mode, json_out):
             k = known.get((fw, r_["name"]))
             if k and r_["status"] == "mismatch":
                 r_.update(status="known", reason=k, ok=True)
+            elif k and r_["status"] == "match" and k.startswith("intermittent:"):
+                r_.update(reason="known intermittent issue, did not occur on this run")
             elif k and r_["status"] == "match":
                 r_.update(ok=False, reason="known failure now holds; remove it from the benchmark")
             bad += not r_["ok"]
