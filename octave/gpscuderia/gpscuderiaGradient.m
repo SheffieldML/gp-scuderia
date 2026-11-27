@@ -70,7 +70,7 @@ switch kern.type
   case {'matern32', 'matern52'}
     g([path '.lengthscale']) = gk(pos + 1) / node.lengthscale;
     g([path '.variance']) = gk(pos + 2) / node.variance; pos = pos + 2;
-  case {'white', 'bias'}
+  case {'white', 'bias', 'lin'}
     g([path '.variance']) = gk(pos + 1) / node.variance; pos = pos + 1;
   otherwise
     error('gpscuderia:unsupported', 'gradient: GPmat kernel %s', kern.type);

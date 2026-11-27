@@ -37,7 +37,7 @@ def _kern_from_wire(node, input_dim):
     dims = node.get("active_dims")
     if dims is not None:
         input_dim = len(dims)
-    kw = {"variance": node["variance"]}
+    kw = {"variances": node["variance"]} if t == "kern.linear" else {"variance": node["variance"]}
     if t in ("kern.rbf", "kern.matern32", "kern.matern52"):
         ls = node["lengthscale"]
         ard = bool(node.get("ARD", isinstance(ls, list)))
@@ -147,7 +147,7 @@ def _kern_to_wire(k, input_dim):
     tag = _TAG.get(type(k))
     if tag is None:
         raise WireExportError("unsupported GPy kernel %s" % type(k).__name__)
-    node = {"type": tag, "variance": float(k.variance[0])}
+    node = {"type": tag, "variance": float((k.variances if tag == "kern.linear" else k.variance)[0])}
     if dims != list(range(input_dim)):
         node["active_dims"] = dims
     if tag in ("kern.rbf", "kern.matern32", "kern.matern52"):
@@ -302,7 +302,7 @@ def _kern_gradients(k, node, path, out):
             _kern_gradients(kp, np_, "%s.parts.%d" % (path, i), out)
         return
     for name in LEAF_PARAMS.get(node["type"], ()):
-        g = np.asarray(getattr(k, name).gradient, float).ravel()   # natural (untransformed) units
+        g = np.asarray(getattr(k, "variances" if isinstance(k, GPy.kern.Linear) else name).gradient, float).ravel()   # natural (untransformed) units
         out["%s.%s" % (path, name)] = g.tolist() if isinstance(node[name], list) else float(g[0])
 
 
