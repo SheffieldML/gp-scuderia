@@ -1,6 +1,6 @@
 """R runners refuse what they cannot realise exactly, and never substitute (CIP-0007).
 
-Usage: python scripts/check_r_refusals.py kergp|dicekriging
+Usage: python scripts/check_r_refusals.py kergp|dicekriging|gaupro
 Each case edits a golden into something outside the package's exact-Gaussian slice (sparse
 bounds that have no golden, a linear kernel, ARD, active dimensions, an unsupported
 kernel combination) and checks that the runner answers `refused`, not a number and not an
@@ -40,6 +40,9 @@ cases = {
 if fw == "dicekriging":
     cases["isotropic Matern in two dimensions"] = (edit(input_dim=2, kernel=kern(type="kern.matern52"), data={"X": [[0.1, 0.2], [0.5, 0.9], [0.8, 0.3]], "Y": [[0.0], [1.0], [0.5]]}, **({})), True)
     cases["add of two kernels"] = (edit(kernel={"type": "kern.add", "parts": [base["kernel"], base["kernel"]]}), True)
+
+if fw == "gaupro":
+    cases["bias kernel"] = (edit(kernel={"type": "kern.bias", "variance": 0.5}), True)
 
 tmp = pathlib.Path(tempfile.mkdtemp())
 tasks = []
