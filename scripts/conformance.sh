@@ -6,7 +6,7 @@
 #   PYTHON     interpreter with numpy, pyyaml (and the gpc package for GPc), default python3
 #   GPY_PY     interpreter with GPy installed (default: ./.venv-gpy/bin/python, else $PYTHON)
 #   GPMAT      GPmat checkout; enables the Octave check (needs octave-cli)
-#   GPML       GPML checkout (see ci/gpml.txt); enables the GPML comparison
+#   GPML       GPML checkout (python scripts/ci_fetch.py gpml <dir> fetches it); enables the GPML comparison
 #   HDF5_LIB   extra library path for Octave on macOS, optional
 set -u
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -33,21 +33,24 @@ echo "== Framework files (frameworks/*.yaml) =="
 echo "== Laplace goldens vs independent numpy implementation =="
 "$GPY_PY" "$ROOT/scripts/check_laplace_independent.py" 2>/dev/null || status=1
 "$GPY_PY" "$ROOT/scripts/check_unsupported_approximations.py" gpy 2>/dev/null || status=1
-for fw in gpflow gpytorch gpjax; do
-  echo "== $fw adapter =="
-  if [ -x "$ROOT/.venv-$fw/bin/python" ]; then
-    "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/compare.py" $fw || status=1
-    "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/check_unsupported_approximations.py" $fw 2>/dev/null || status=1
-  else echo "skipped (no .venv-$fw)"; fi
+# Every framework with a pinned entry in frameworks/*.yaml (the same list CI uses).
+"$GPY_PY" "$ROOT/scripts/ci_matrix.py" --lines | while read fw kind env; do
+  echo "== $fw =="
+  case $kind in
+  python)
+    if [ -x "$ROOT/.venv-$fw/bin/python" ]; then
+      "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/compare.py" $fw || echo "FAILED $fw" >> "$ROOT/.conformance-failed"
+      "$ROOT/.venv-$fw/bin/python" "$ROOT/scripts/check_unsupported_approximations.py" $fw 2>/dev/null || echo "FAILED $fw unsupported" >> "$ROOT/.conformance-failed"
+    else echo "skipped (no .venv-$fw)"; fi ;;
+  octave)
+    eval "dir=\${$env:-}"
+    if [ -n "$dir" ] && command -v octave-cli >/dev/null 2>&1; then
+      if [ "$fw" = gpmat ]; then
+        DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-}" octave-cli --quiet "$ROOT/octave/conformance_gpmat.m" || echo "FAILED gpmat conformance" >> "$ROOT/.conformance-failed"
+      fi
+      DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-}" "$PY" "$ROOT/scripts/compare.py" $fw || echo "FAILED $fw" >> "$ROOT/.conformance-failed"
+    else echo "skipped (set $env and install octave-cli)"; fi ;;
+  esac
 done
-echo "== GPmat (Octave) =="
-if [ -n "${GPMAT:-}" ] && command -v octave-cli >/dev/null 2>&1; then
-  DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-}" GPMAT="$GPMAT" \
-    octave-cli --quiet "$ROOT/octave/conformance_gpmat.m" || status=1
-  DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-}" "$PY" "$ROOT/scripts/compare.py" gpmat || status=1
-else echo "skipped (set GPMAT and install octave-cli)"; fi
-echo "== GPML (Octave) =="
-if [ -n "${GPML:-}" ] && command -v octave-cli >/dev/null 2>&1; then
-  DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-}" "$PY" "$ROOT/scripts/compare.py" gpml || status=1
-else echo "skipped (set GPML and install octave-cli)"; fi
+if [ -f "$ROOT/.conformance-failed" ]; then cat "$ROOT/.conformance-failed"; rm -f "$ROOT/.conformance-failed"; status=1; fi
 exit $status

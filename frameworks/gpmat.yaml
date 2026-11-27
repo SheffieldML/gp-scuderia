@@ -5,6 +5,12 @@ runners:
     script: octave/gpmat/runGpmat.m
     env: GPMAT
     versions_from_run: true
+    fetch:    # first commit with the FITC log-likelihood fix
+      git: https://github.com/SheffieldML/GPmat.git
+      rev: e482881f
+    apt: [octave]
+ci:
+  modes: [pinned]
 capabilities:
   approximations: [ftc, dtc, dtcvar, fitc, pitc]
   kernels: [rbf, matern32, matern52, white, bias, linear, add, prod]
