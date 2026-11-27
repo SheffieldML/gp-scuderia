@@ -97,6 +97,38 @@ def _laplace_from_wire(doc, kern, X, Y):
                        inference_method=GPy.inference.latent_function_inference.Laplace())
 
 
+def _latent_from_wire(doc):
+    """models.bayesian_gplvm: GPy.models.BayesianGPLVM with the document's own q(X), Z and parameters."""
+    if doc["type"] != "models.bayesian_gplvm":
+        raise UnsupportedByFramework("GPy adapter: %s has no adapter path yet" % doc["type"])
+    lat = doc["latent"]
+    Z = np.array(doc["inducing_inputs"], float)
+    kern = _kern_from_wire(doc["kernel"], lat["dim"])
+    m = GPy.models.BayesianGPLVM(np.array(doc["data"]["Y"], float), lat["dim"],
+                                 X=np.array(lat["mean"], float), X_variance=np.array(lat["variance"], float),
+                                 kernel=kern, Z=Z, num_inducing=len(Z))
+    m.Gaussian_noise.variance = doc["likelihood"]["variance"]
+    return m
+
+
+def _kl(doc):
+    mu, S = (np.array(doc["latent"][k], float) for k in ("mean", "variance"))
+    return float(0.5 * np.sum(mu ** 2 + S - np.log(S) - 1.0))   # KL(q(X) || N(0, I))
+
+
+def bound(doc):
+    """Collapsed bound without KL, and the KL term. GPy folds -KL into log_likelihood, so we add it back."""
+    m = _latent_from_wire(doc)
+    kl = _kl(doc)
+    return {"bound_without_kl": float(np.asarray(m.log_likelihood()).ravel()[0]) + kl, "kl": kl}
+
+
+def psi(doc):
+    """psi0 (n), psi1 (n x m), psi2 (m x m, summed over n) from GPy's own kernel statistics."""
+    m = _latent_from_wire(doc)
+    return {"psi0": m.kern.psi0(m.Z, m.X), "psi1": m.kern.psi1(m.Z, m.X), "psi2": m.kern.psi2(m.Z, m.X)}
+
+
 def from_wire(doc):
     d = doc["input_dim"]
     norm, mf = _target_transform(doc)
@@ -261,7 +293,7 @@ def reference(doc, Xnew):
     if lik["type"] == "likelihoods.mixed_gaussian":
         meta = {"output_index": Xnew[:, lik["output_index_column"]].astype(int)[:, None]}
     mean, var = m.predict(Xnew, Y_metadata=meta)
-    ll = float(m.log_likelihood())
+    ll = float(np.asarray(m.log_likelihood()).ravel()[0])
     if doc.get("normalizer", {}).get("type") == "normalizer.standardize":
         # GPy scores the standardized targets; the wire reports log p(y).
         Y = np.asarray(doc["data"]["Y"], float)
@@ -289,7 +321,7 @@ def _laplace_reference(doc, m, Xnew):
     else:
         mean = np.exp(mu + 0.5 * s2)
         var = mean + mean ** 2 * np.expm1(s2)
-    return {"log_likelihood": float(m.log_likelihood()), "Xnew": Xnew.tolist(),
+    return {"log_likelihood": float(np.asarray(m.log_likelihood()).ravel()[0]), "Xnew": Xnew.tolist(),
             "mean": mean.tolist(), "var": var.tolist(),
             "latent_mean": mu.tolist(), "latent_var": s2.tolist()}
 

@@ -12,9 +12,10 @@
     "schema": {
       "enum": [
         "gp-scuderia-task/1",
-        "gp-scuderia-task/2"
+        "gp-scuderia-task/2",
+        "gp-scuderia-task/3"
       ],
-      "description": "/2 is /1 plus the optional per-task operations list; every /1 file is also a valid /2 file."
+      "description": "/2 is /1 plus the optional per-task operations list; /3 adds the bound and psi operations (CIP-0006). Every /1 and /2 file is also a valid /3 file."
     },
     "tasks": {
       "type": "array",
@@ -59,10 +60,12 @@
               "enum": [
                 "log_likelihood",
                 "predict",
-                "gradient"
+                "gradient",
+                "bound",
+                "psi"
               ]
             },
-            "description": "Optional (contract /2). Default is [log_likelihood, predict]. gradient returns d log likelihood / d each wire parameter, keyed by its path in the wire tree, in wire units. A task asking only for gradient returns only gradient."
+            "description": "Optional (contract /2). Default is [log_likelihood, predict]. gradient returns d log likelihood / d each wire parameter, keyed by its path in the wire tree, in wire units. A task asking only for gradient returns only gradient. bound (latent-variable models, CIP-0006) returns bound_without_kl and kl separately; psi returns the psi statistics psi0 (n), psi1 (n x m) and psi2 (m x m, summed over n). bound and psi, like gradient, must be requested on their own."
           }
         }
       }

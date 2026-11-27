@@ -1,7 +1,7 @@
 ---
 id: "2026-11-27_gplvm-runner-ops"
 title: "Runner bound and psi operations"
-status: "Ready"
+status: "In Progress"
 priority: "High"
 created: "2026-11-27"
 last_updated: "2026-11-27"
@@ -22,8 +22,9 @@ Add `bound` (with `kl` reported separately) and optional `psi` operations to the
 
 ## Acceptance Criteria
 
-- [ ] Contract version bump; earlier task and result files still validate
-- [ ] GPc and GPy adapters return bound_without_kl, kl and psi0/1/2
+- [x] Contract version bump to /3; earlier task and result files still validate
+- [x] GPy adapter returns bound_without_kl, kl and psi0/1/2 (scripts/check_latent_ops.py)
+- [ ] GPc adapter: gp_scuderia delegates to gpc.interchange.bound and .psi, which GPc still has to provide (CBayesGplvm::varDtcBound is the bound without KL)
 - [ ] Frameworks without the operation are reported as skipped
 
 ## Related
@@ -34,3 +35,6 @@ Add `bound` (with `kl` reported separately) and optional `psi` operations to the
 
 ### 2026-11-27
 Created from the accepted CIP-0006.
+
+### 2026-11-27
+GPy half done and checked; GPc half waits on gpc.interchange. The adapter refuses cleanly until then.
