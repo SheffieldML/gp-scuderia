@@ -1,7 +1,7 @@
 ---
 id: "2026-11-27_gpml-adapter"
 title: "GPML adapter under octave/gpml"
-status: "Proposed"
+status: "Completed"
 priority: "Medium"
 created: "2026-11-27"
 last_updated: "2026-11-27"

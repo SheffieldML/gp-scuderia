@@ -1,7 +1,7 @@
 ---
 id: "2026-11-27_gpml-probe"
 title: "Probe GPML against the goldens"
-status: "In Progress"
+status: "Completed"
 priority: "Medium"
 created: "2026-11-27"
 last_updated: "2026-11-27"

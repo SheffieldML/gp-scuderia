@@ -94,9 +94,7 @@ jobs:
 
   gpml:
     # GPML under Octave: an independent MATLAB-lineage implementation (CIP-0002).
-    # continue-on-error until it has been green once on ubuntu-latest.
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -118,16 +116,15 @@ jobs:
 
   gpmat:
     # GPmat under Octave, through the same route as GPML (CIP-0002). Cloned at its default branch
-    # for now; pin a commit once green. continue-on-error until it has run green once on ubuntu-latest.
+    # at a pinned commit (the first with the FITC log-likelihood fix).
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
       - run: pip install numpy pyyaml jsonschema
       - run: sudo apt-get update && sudo apt-get install -y octave
-      - run: git clone --depth 1 https://github.com/SheffieldML/GPmat.git gpmat
+      - run: git clone https://github.com/SheffieldML/GPmat.git gpmat && git -C gpmat checkout e482881f
       - run: echo "GPMAT=$PWD/gpmat" >> "$GITHUB_ENV"
       - run: echo "GPMAT_VERSION=$(git -C gpmat rev-parse --short HEAD)" >> "$GITHUB_ENV"
       - run: python scripts/compare.py gpmat --json results/gpmat.json

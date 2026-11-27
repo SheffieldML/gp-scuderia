@@ -1,7 +1,7 @@
 ---
 id: "2026-11-27_gpml-compare-registry"
 title: "compare.py gpml path and registry entry"
-status: "Proposed"
+status: "Completed"
 priority: "Medium"
 created: "2026-11-27"
 last_updated: "2026-11-27"
