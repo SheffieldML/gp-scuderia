@@ -1,0 +1,11 @@
+# Snapshot of the goldens each framework is expected to refuse (taken from the
+# hand-kept registry table that frameworks/*.yaml replaced). scripts/check_framework_files.py
+# fails if the derived expectations differ, so changing a declaration or adding a golden
+# is a deliberate edit here too.
+gpy: []
+gpc: []
+gpflow: [fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]
+gpytorch: [ftc_rbf_white, dtcvar_ard_data, dtcvar_mean_constant, fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]
+gpjax: [fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]
+gpml: [dtcvar_ard_data, dtcvar_mean_constant, ftc_icm, ftc_lcm]
+gpmat: [ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]

@@ -1,7 +1,7 @@
 ---
 id: "2026-11-27_framework-files"
 title: "Framework YAML files and derived expectations"
-status: "Ready"
+status: "Completed"
 priority: "High"
 created: "2026-11-27"
 last_updated: "2026-11-27"
@@ -22,7 +22,7 @@ Write frameworks/*.yaml for gpy, gpflow, gpytorch, gpjax, gpc, gpml and gpmat. A
 
 ## Acceptance Criteria
 
-- [ ] Report identical to today's cell for cell; deliberately wrong declarations fail in both directions; unknown options fail validation.
+- [x] Report identical to today's cell for cell; deliberately wrong declarations fail in both directions; unknown options fail validation.
 
 ## Related
 
@@ -32,3 +32,6 @@ Write frameworks/*.yaml for gpy, gpflow, gpytorch, gpjax, gpc, gpml and gpmat. A
 
 ### 2026-11-27
 Created from the accepted CIP-0003.
+
+### 2026-11-27 (delivery)
+Added `frameworks/*.yaml` (7), `scripts/frameworks.py` (loader, feature extraction, derived expectations, registry-vocabulary and option validation), `scripts/check_framework_files.py` with the snapshot `tests/expected_refusals.yaml`, and `gp_scuderia/gpc_adapter.py`. `compare.py` now reads the files and the registry's `framework_verification` block is replaced by `capability_options`. Old and new `compare.py` output is identical cell for cell for gpy, gpflow, gpytorch, gpjax, gpml and gpmat (gpc not run locally; CI covers it). The CI matrix is still hand-written; that is task `generated-ci-matrix`.

@@ -1,0 +1,13 @@
+name: gpytorch
+runners:
+  - id: python
+    kind: python
+    entry: gp_scuderia.gpytorch_adapter:reference
+    install: {pinned: ci/pinned-gpytorch.txt, latest: ci/latest-gpytorch.txt}
+    versions: [gpytorch, torch, numpy]
+capabilities:
+  approximations: [ftc]                # sparse bounds are not exact here
+  kernels: [rbf, matern32, matern52, bias, linear, add, prod]   # no white: noise lives in the likelihood
+  likelihoods: [gaussian]
+  inference: [exact]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

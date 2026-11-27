@@ -1,0 +1,12 @@
+name: gpc
+runners:
+  - id: python
+    kind: python
+    entry: gp_scuderia.gpc_adapter:reference
+    versions: [gpc, numpy]
+capabilities:
+  approximations: [ftc, dtc, dtcvar, fitc, pitc]
+  kernels: [rbf, matern32, matern52, coregionalize, white, bias, linear, add, prod]
+  likelihoods: [gaussian, mixed_gaussian, bernoulli, poisson]
+  inference: [exact, laplace]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

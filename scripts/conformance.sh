@@ -28,6 +28,8 @@ else echo "skipped (no gpc package under $GPC_PY; build it with make -C python)"
 else echo "== GPc ==" ; echo "skipped (GPC_ROOT not set)"; fi
 echo "== GPy (to_wire / from_wire) =="
 "$GPY_PY" "$ROOT/scripts/conformance_gpy.py" 2>/dev/null || status=1
+echo "== Framework files (frameworks/*.yaml) =="
+"$GPY_PY" "$ROOT/scripts/check_framework_files.py" || status=1
 echo "== Laplace goldens vs independent numpy implementation =="
 "$GPY_PY" "$ROOT/scripts/check_laplace_independent.py" 2>/dev/null || status=1
 "$GPY_PY" "$ROOT/scripts/check_unsupported_approximations.py" gpy 2>/dev/null || status=1

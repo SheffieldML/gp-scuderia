@@ -1,0 +1,13 @@
+name: gpy
+runners:
+  - id: python
+    kind: python
+    entry: gp_scuderia.gpy_adapter:reference
+    install: {pinned: ci/pinned-gpy.txt, latest: ci/latest-gpy.txt}
+    versions: [GPy, numpy, scipy]
+capabilities:   # the oracle: reproduces every golden
+  approximations: [ftc, dtc, dtcvar, fitc, pitc]
+  kernels: [rbf, matern32, matern52, coregionalize, white, bias, linear, add, prod]
+  likelihoods: [gaussian, mixed_gaussian, bernoulli, poisson]
+  inference: [exact, laplace]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

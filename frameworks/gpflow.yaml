@@ -1,0 +1,13 @@
+name: gpflow
+runners:
+  - id: python
+    kind: python
+    entry: gp_scuderia.gpflow_adapter:reference
+    install: {pinned: ci/pinned-gpflow.txt, latest: ci/latest-gpflow.txt}
+    versions: [gpflow, tensorflow, tensorflow-probability, numpy]
+capabilities:
+  approximations: [ftc, dtcvar]        # adapter has no exact FITC
+  kernels: [rbf, matern32, matern52, white, bias, linear, add, prod]
+  likelihoods: [gaussian]
+  inference: [exact]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

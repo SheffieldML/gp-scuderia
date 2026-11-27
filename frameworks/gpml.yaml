@@ -1,0 +1,21 @@
+name: gpml
+runners:
+  - id: octave
+    kind: octave
+    script: octave/gpml/runGpml.m
+    env: GPML
+    versions_from_run: true
+    fetch: ci/gpml.txt
+capabilities:
+  approximations: [ftc, fitc]          # no DTCVAR bound in GPML
+  kernels:
+    - rbf
+    - matern32: {options: []}          # covMaterniso has no ARD
+    - matern52: {options: []}
+    - white
+    - bias
+    - add
+    - prod
+  likelihoods: [gaussian, bernoulli, poisson]
+  inference: [exact, laplace]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

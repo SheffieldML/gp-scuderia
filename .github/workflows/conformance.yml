@@ -19,6 +19,7 @@ jobs:
       - run: python scripts/record_check.py results/validate.json validate "Goldens satisfy the JSON schema" -- python scripts/validate.py
       - run: python scripts/record_check.py results/conformance_gpy.json gpy-roundtrip "GPy export/import round trip" -- python scripts/conformance_gpy.py
       - run: python scripts/record_check.py results/laplace_independent.json laplace-independent "Laplace goldens against an independent numpy implementation" -- python scripts/check_laplace_independent.py
+      - run: python scripts/record_check.py results/framework_files.json framework-files "Framework files valid; derived expectations match the snapshot in both directions" -- python scripts/check_framework_files.py
       - run: python scripts/compare.py gpy --mode pinned --json results/gpy-pinned.json
       - uses: actions/upload-artifact@v4
         if: always()

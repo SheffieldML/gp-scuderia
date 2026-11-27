@@ -344,23 +344,13 @@ reserved_inference:
   vi:    {native: [gpflow, gpjax, gpytorch, gpy], notes: "Stores variational.{family,whiten,inducing_inputs,q_mean,q_chol}. GPy via core.SVGP, to be confirmed."}
   mcmc:  {native: [gpflow, gpjax, gpy],          notes: "Stores prior and mcmc.samples. GPy via its HMC sampler, to be confirmed."}
 
-# Per-framework verification against the goldens (scripts/compare.py).
-# 'reproduces' lists goldens matched within tolerance; anything else is refused with an explicit error.
-framework_verification:
-  gpflow:
-    reproduces: [ftc_rbf_white, ftc_prod_matern52, ftc_standardize, dtcvar_ard_data, dtcvar_mean_constant]
-    refuses: [fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]
-  gpytorch:
-    reproduces: [ftc_prod_matern52, ftc_standardize]
-    refuses: [ftc_rbf_white, dtcvar_ard_data, dtcvar_mean_constant, fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]
-  gpjax:
-    reproduces: [ftc_rbf_white, ftc_prod_matern52, ftc_standardize, dtcvar_ard_data, dtcvar_mean_constant]
-    refuses: [fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]
-  gpy:
-    refuses: []   # the oracle reproduces every golden
-  gpc:
-    refuses: []
-  gpml:
-    refuses: [dtcvar_ard_data, dtcvar_mean_constant, ftc_icm, ftc_lcm]   # no DTCVAR bound, no coregionalisation
-  gpmat:
-    refuses: [ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]   # multi-output and non-Gaussian likelihoods
+# Options a framework file may claim per type (frameworks/*.yaml). A bare name in
+# a framework's capabilities claims every option; `name: {options: [...]}` claims
+# only those listed. A golden exercises an option when its document uses it
+# (for example `ARD: true` exercises `ard`). Add options here only when a
+# framework's refusal pattern needs them (CIP-0003).
+capability_options:
+  kern.rbf: [ard]
+  kern.matern32: [ard]
+  kern.matern52: [ard]
+  kern.linear: [ard]
