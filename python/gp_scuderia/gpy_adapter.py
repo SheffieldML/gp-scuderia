@@ -108,6 +108,9 @@ def _latent_from_wire(doc):
                                  X=np.array(lat["mean"], float), X_variance=np.array(lat["variance"], float),
                                  kernel=kern, Z=Z, num_inducing=len(Z))
     m.Gaussian_noise.variance = doc["likelihood"]["variance"]
+    # GPy leaves updates switched off after construction, so gradients (not values) are those of
+    # the constructor's state until it is switched on; refresh so every gradient is current.
+    m.update_model(True)
     return m
 
 
@@ -342,6 +345,8 @@ def gradient(doc):
     """The oracle: analytic dLL/d(wire parameter) from GPy, keyed by wire path (see params.py)."""
     from .params import wire_paths
     wire_paths(doc)              # raises UnsupportedByFramework outside the contract
+    if doc.get("type") == "models.bayesian_gplvm":
+        return _latent_gradient(doc)
     m = from_wire(doc)
     out = {}
     _kern_gradients(m.kern, doc["kernel"], "kernel", out)
@@ -349,13 +354,41 @@ def gradient(doc):
     return out
 
 
+def _latent_gradient(doc):
+    """Analytic gradient of bound_without_kl - kl for a Bayesian GP-LVM, in wire units."""
+    m = _latent_from_wire(doc)
+    out = {}
+    _kern_gradients(m.kern, doc["kernel"], "kernel", out)
+    out["likelihood.variance"] = float(np.asarray(m.likelihood.variance.gradient).ravel()[0])
+    out["latent.mean"] = np.asarray(m.X.mean.gradient, float).tolist()
+    out["latent.variance"] = np.asarray(m.X.variance.gradient, float).tolist()
+    out["inducing_inputs"] = np.asarray(m.Z.gradient, float).tolist()
+    return out
+
+
+def _objective(doc):
+    r = bound(doc)
+    return r["bound_without_kl"] - r["kl"]
+
+
 def gradient_fd(doc, rel_step=1e-6):
     """Central differences of this adapter's own log likelihood; independent of the analytic gradient."""
     from .params import wire_paths, perturbed
     out = {}
+    latent = doc.get("type") == "models.bayesian_gplvm"
     for path, val in wire_paths(doc):
+        if latent and isinstance(val, list) and val and isinstance(val[0], list):
+            g = []
+            for i, row in enumerate(val):
+                gr = []
+                for j, v in enumerate(row):
+                    h = 10 * rel_step * max(abs(v), 1.0)   # coordinates may be near zero: a relative step would be round-off limited
+                    gr.append((_objective(perturbed(doc, path, h, (i, j))) - _objective(perturbed(doc, path, -h, (i, j)))) / (2 * h))
+                g.append(gr)
+            out[path] = g
+            continue
         def ll(d):
-            return reference(d, doc["x-reference"]["Xnew"])["log_likelihood"]
+            return _objective(d) if latent else reference(d, doc["x-reference"]["Xnew"])["log_likelihood"]
         if isinstance(val, list):
             g = []
             for i, v in enumerate(val):

@@ -25,7 +25,7 @@ Golden `bgplvm_rbf_ard` with GPy reference values, then benchmarks gplvm_bound_a
 - [x] Golden (examples/latent/bgplvm_rbf_ard) with GPy oracle for bound_without_kl, kl and psi statistics
 - [x] gplvm_bound_agreement, gplvm_collapse_to_sparse and psi_statistics added (GPy passes all 13 cases)
 - [x] gplvm_collapse_to_sparse: S to 0 reproduces the dtcvar log likelihood at inputs mu
-- [ ] gplvm_gradient_agreement (needs a latent gradient oracle and wire paths for mu, S, Z)
+- [x] gplvm_gradient_agreement (GPy passes all 5 cases)
 - [ ] gplvm_timing (scheduled tier)
 - [ ] Each benchmark meets the CIP-0005 admission rule and the latent-gauge rule
 
@@ -43,3 +43,6 @@ In Progress. Golden added under `examples/latent/` with GPy values; `scripts/che
 
 ### 2026-11-27 (later)
 Added `gplvm_bound_agreement`, `gplvm_collapse_to_sparse` and `psi_statistics`. The psi oracle is a 48-node Gauss-Hermite quadrature; 24 nodes left 1e-7 in psi2, which the generator's GPy cross-check caught. Frameworks without a `bound` or `psi` operation in their framework file are skipped. Gradient and timing remain.
+
+### 2026-11-27 (gradient)
+Added `gplvm_gradient_agreement`. The gradient is that of `bound_without_kl - kl` in wire units, with `latent.mean`, `latent.variance` and `inducing_inputs` added to `params.py`. GPy leaves updates off after constructing a `BayesianGPLVM`, so its gradients (not its values) were stale until `update_model(True)`; the adapter now refreshes them. GPy returns about 4e-6 for the inducing-input gradient of a linear kernel, where the exact value is zero, so the case relies on an absolute tolerance of 1e-4. Only `gplvm_timing` remains.

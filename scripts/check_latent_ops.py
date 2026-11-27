@@ -98,4 +98,17 @@ dev = B.latent_deviation("psi", bad_psi, ref)
 check("psi comparison flags a 0.1% error", all(dev[k_] > tol["psi"] for k_ in ("psi1", "psi2")))
 dev = B.latent_deviation("latent_bound", {"bound": {"bound_without_kl": b["bound_without_kl"] + 1e-2, "kl": b["kl"]}}, ref)
 check("bound comparison flags an error of 1e-2", dev["bound_without_kl"] > tol["bound_without_kl"] and dev["kl"] == 0)
+# Latent gradient: analytic against central differences, and the log-space mistake is caught.
+g = A.gradient(doc); fd = A.gradient_fd(doc)
+gtol = {"atol": 1e-4, "rtol": 1e-3}
+dv, _ = B.gradient_deviation(g, fd, gtol)
+check("latent gradient agrees with central differences (%.2g of tolerance)" % dv, dv < 0.1)
+check("gradient keys include latent.mean, latent.variance, inducing_inputs",
+      {"latent.mean", "latent.variance", "inducing_inputs"} <= set(g))
+S_ = np.array(doc["latent"]["variance"])
+wrong = dict(g); wrong["latent.variance"] = (np.array(g["latent.variance"]) * S_).tolist()   # dL/dlog S
+dv, _ = B.gradient_deviation(wrong, g, gtol)
+check("gradient comparison flags dL/dlog S in place of dL/dS", dv > 1)
+r = run.run_tasks(A.reference, [{"name": "g", "golden": str(path), "operations": ["gradient"]}], A.gradient)["g"]
+check("runner returns the latent gradient", "gradient" in r and "latent.mean" in r["gradient"])
 sys.exit(1 if bad else 0)

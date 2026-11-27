@@ -1,0 +1,29 @@
+name: gplvm_gradient_agreement
+kind: latent_gradient
+description: >
+  Gradients of the Bayesian GP-LVM objective, bound_without_kl - kl, with respect to the kernel
+  parameters, the noise variance, the means and variances of q(X), and the inducing inputs
+  (CIP-0006). The document fixes q(X), so the gradients are compared in its own coordinates;
+  no latent gauge is involved. Units are the wire values themselves, so a framework that
+  optimises log S or log lengthscale must apply the chain rule (params.py). The oracle is GPy's
+  analytic gradient; the generator refuses a case in which it differs from central differences
+  of GPy's own bound by more than a tenth of the tolerance.
+  The inducing-input gradients of the linear kernel are zero in exact arithmetic, because the
+  bound depends on Z only through the subspace it spans. GPy returns about 4e-6 there (its
+  1e-8 jitter on K_uu), so the absolute tolerance of 1e-4 is what makes the case fair.
+seed: 64
+base:
+  n: 20
+  latent_dim: 3
+  output_dim: 3
+  inducing: 6
+  noise: 0.1
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.2}
+cases:
+  - {id: rbf}
+  - {id: rbf_ard, kernel: {type: kern.rbf, variance: 1.5, lengthscale: [0.8, 1.4, 2.0], ARD: true}}
+  - {id: linear, kernel: {type: kern.linear, variance: 0.8}}
+  - {id: small_noise, noise: 1.0e-2}
+  - {id: wide_posterior, s_range: [0.5, 1.5]}
+tolerance:
+  gradient: {atol: 1.0e-4, rtol: 1.0e-3}

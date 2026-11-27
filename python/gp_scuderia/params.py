@@ -10,7 +10,18 @@ same key means the same quantity in every framework:
 Values are derivatives of the log likelihood (of the target as the model sees it, after any
 mean or normalizer shift, which does not depend on these parameters) with respect to the wire
 value itself - positive, untransformed. A vector lengthscale (ARD) gives a vector.
-Parameters held fixed by the wire format (inducing inputs) are not included.
+Parameters held fixed by the wire format (inducing inputs of sparse regression) are not included.
+
+A Bayesian GP-LVM (CIP-0006) adds the variational parameters, as matrices:
+
+    latent.mean                     n x q, the means of q(X)
+    latent.variance                 n x q, the variances of q(X), positive
+    inducing_inputs                 m x q
+
+Its gradient is that of the full objective, bound_without_kl - kl, which is what training
+maximises, with respect to the wire values themselves (not log S). Gradients with respect
+to latent coordinates are compared in the gauge of the document: the benchmark fixes q(X),
+so there is no rotation or sign freedom to remove.
 """
 LEAF_PARAMS = {
     "kern.rbf": ("variance", "lengthscale"),
@@ -49,6 +60,9 @@ def wire_paths(doc):
             if name in leaf:
                 out.append(("%s.%s" % (path, name), leaf[name]))
     out.append(("likelihood.variance", doc["likelihood"]["variance"]))
+    if doc.get("type") == "models.bayesian_gplvm":
+        out += [("latent.mean", doc["latent"]["mean"]), ("latent.variance", doc["latent"]["variance"]),
+                ("inducing_inputs", doc["inducing_inputs"])]
     return out
 
 
@@ -68,6 +82,8 @@ def perturbed(doc, path, delta, index=None):
     node, key = node_at(d, path)
     if index is None:
         node[key] = node[key] + delta
+    elif isinstance(index, tuple):
+        node[key][index[0]][index[1]] += delta
     else:
         node[key][index] = node[key][index] + delta
     return d

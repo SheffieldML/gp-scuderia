@@ -215,7 +215,7 @@ def gradient_deviation(g, ref, tol):
     return worst, None
 
 
-LATENT_KINDS = {"latent_bound": "bound", "latent_collapse": "bound", "psi": "psi"}   # kind -> runner operation
+LATENT_KINDS = {"latent_bound": "bound", "latent_collapse": "bound", "psi": "psi", "latent_gradient": "gradient"}   # kind -> runner operation
 
 
 def make_latent_model(bench, case, index):
@@ -301,6 +301,14 @@ def latent_reference(bench, doc):
         if abs(own - ll) > 1e-6:
             raise SystemExit("GPy's latent bound %.10g differs from its sparse GP %.10g in the collapse limit" % (own, ll))
         ref = {"bound_without_kl": ll, "oracle": "GPy sparse GP (dtcvar) at inputs mu; no psi statistic involved"}
+    elif kind == "latent_gradient":
+        a, fd = gpy_adapter.gradient(doc), gpy_adapter.gradient_fd(doc)
+        worst, why = gradient_deviation(a, fd, bench["tolerance"]["gradient"])   # 1.0 is the benchmark tolerance
+        if why or worst > 0.1:
+            raise SystemExit("GPy's latent gradient disagrees with finite differences (%.2g of the tolerance; %s) for %s"
+                             % (worst, why, doc.get("x-descriptors")))
+        ref = {"gradient": a, "gradient_fd_deviation_over_tolerance": worst,
+               "oracle": "GPy analytic gradient of bound_without_kl - kl, checked against central differences"}
     else:
         gh, gp = gauss_hermite_psi(doc), gpy_adapter.psi(doc)
         worst = max(float(np.max(np.abs(gh[k] - np.asarray(gp[k])))) for k in gh)
@@ -458,6 +466,12 @@ def run(fw, data, mode, json_out):
                 rec.update(status="refused", reason=g["refused"])
             elif "error" in g:
                 rec.update(status="error", reason=g["error"])
+            elif docs[n].get("x-benchmark-kind") == "latent_gradient":
+                worst, why_not = gradient_deviation(g["gradient"], ref["gradient"], tol["gradient"])
+                rec.update(deviation={"gradient": worst}, tolerance={"gradient": 1.0},
+                           status="match" if worst <= 1.0 else "mismatch")
+                if why_not:
+                    rec["detail"] = why_not
             elif docs[n].get("x-benchmark-kind") in LATENT_KINDS:
                 dev = latent_deviation(docs[n]["x-benchmark-kind"], g, ref)
                 tl = {k: tol.get(k, tol.get("psi")) for k in dev}
