@@ -1,3 +1,4 @@
 GPy
 PyYAML
 jsonschema
+matplotlib

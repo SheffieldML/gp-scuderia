@@ -75,11 +75,19 @@ jobs:
       - run: pip install -r ci/pinned-gpy.txt
       - run: cp gpc/make.linux gpc/make.inc
       - run: cd gpc && make testInterchange gp
-      - run: GPC_ROOT=$PWD/gpc PYTHON=python python scripts/record_check.py results/gpc-cli.json gpc-cli "GPc C++ reader, CLI and Laplace round trip" -- sh scripts/conformance.sh
-      - run: pip install ./gpc/python
+      - id: pyinstall
+        run: pip install ./gpc/python
         continue-on-error: true
+      - name: Conformance (CLI always; Python package when it installed)
+        run: |
+          if [ "${{ steps.pyinstall.outcome }}" = success ]; then
+            export GPC_PY=$(python -c "import site;print(site.getsitepackages()[0])")
+          else
+            export GPC_PY=/nonexistent
+          fi
+          GPC_ROOT=$PWD/gpc PYTHON=python python scripts/record_check.py results/gpc-cli.json gpc-cli "GPc C++ reader, CLI and Laplace round trip" -- sh scripts/conformance.sh
       - run: python scripts/compare.py gpc --mode pinned --json results/gpc-pinned.json
-        continue-on-error: true
+        if: steps.pyinstall.outcome == 'success'
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: results-gpc, path: results}
