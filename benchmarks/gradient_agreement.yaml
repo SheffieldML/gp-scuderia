@@ -1,0 +1,45 @@
+name: gradient_agreement
+kind: gradient
+description: >
+  Gradient of the log likelihood with respect to every kernel and noise hyperparameter, in the
+  wire's natural (positive, untransformed) parameterisation. The oracle is GPy's analytic
+  gradient, which the generator cross-checks against central differences of GPy's own log
+  likelihood and refuses to emit if they disagree. A framework that optimises in a log or raw
+  space must apply the chain rule; dropping that factor fails every case. Scope: kernel
+  variance and lengthscale, plus Gaussian noise variance, for ftc and the sparse
+  approximations. Inducing inputs, means and normalisers are outside it.
+seed: 5
+base:
+  n: 60
+  input_dim: 2
+  noise: 0.1
+  approximation: ftc
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+cases:
+  - {id: rbf}
+  - {id: matern32, kernel: {type: kern.matern32, variance: 1.0, lengthscale: 1.0}}
+  - {id: matern52, kernel: {type: kern.matern52, variance: 1.0, lengthscale: 1.0}}
+  - {id: rbf_ard, kernel: {type: kern.rbf, variance: 1.5, lengthscale: [0.7, 1.6], ARD: true}}
+  - id: rbf_plus_white
+    kernel: {type: kern.add, parts: [{type: kern.rbf, variance: 1.0, lengthscale: 1.0}, {type: kern.white, variance: 0.1}]}
+  - id: rbf_plus_bias
+    kernel: {type: kern.add, parts: [{type: kern.rbf, variance: 1.0, lengthscale: 1.0}, {type: kern.bias, variance: 0.5}]}
+  - id: rbf_times_matern52
+    kernel: {type: kern.prod, parts: [{type: kern.rbf, variance: 1.0, lengthscale: 1.0}, {type: kern.matern52, variance: 1.2, lengthscale: 0.8}]}
+  - {id: short_lengthscale, kernel: {type: kern.rbf, variance: 1.0, lengthscale: 0.05}}
+  - {id: long_lengthscale, kernel: {type: kern.rbf, variance: 1.0, lengthscale: 20.0}}
+  - {id: large_variance, kernel: {type: kern.rbf, variance: 100.0, lengthscale: 1.0}}
+  - {id: small_noise, noise: 1.0e-3}
+  - {id: dtcvar_16, approximation: dtcvar, inducing: 16}
+  - {id: fitc_16, approximation: fitc, inducing: 16}
+tolerance:
+  log_likelihood: 1.0e-4
+  mean: 1.0e-4
+  var: 1.0e-4
+  gradient: {rtol: 1.0e-5, atol: 1.0e-8}
+known:
+  gpflow: {dtcvar_16: 'Kuu jitter: GPy uses 1e-8, this framework 1e-6; the same convention difference as in sparse_properties, here seen at about 2e-5 relative in the gradient', small_noise: 'noise 1e-3 makes the matrix ill conditioned; the five non-GPy frameworks agree with each other and differ from GPy by 3e-4 relative, consistent with the GPy Cholesky jitter suspected in the conditioning benchmark; not yet confirmed'}
+  gpjax: {dtcvar_16: 'Kuu jitter: GPy uses 1e-8, this framework 1e-6; the same convention difference as in sparse_properties, here seen at about 2e-5 relative in the gradient', small_noise: 'noise 1e-3 makes the matrix ill conditioned; the five non-GPy frameworks agree with each other and differ from GPy by 3e-4 relative, consistent with the GPy Cholesky jitter suspected in the conditioning benchmark; not yet confirmed'}
+  gpytorch: {small_noise: 'noise 1e-3 makes the matrix ill conditioned; the five non-GPy frameworks agree with each other and differ from GPy by 3e-4 relative, consistent with the GPy Cholesky jitter suspected in the conditioning benchmark; not yet confirmed'}
+  gpml: {small_noise: 'noise 1e-3 makes the matrix ill conditioned; the five non-GPy frameworks agree with each other and differ from GPy by 3e-4 relative, consistent with the GPy Cholesky jitter suspected in the conditioning benchmark; not yet confirmed'}
+  gpmat: {dtcvar_16: 'Kuu jitter: GPy uses 1e-8, this framework 1e-6; the same convention difference as in sparse_properties, here seen at about 2e-5 relative in the gradient', fitc_16: 'about 1.2e-5 relative on the sparse gradient; Kuu jitter is the likely cause, not yet isolated', large_variance: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', long_lengthscale: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', matern32: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', matern52: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', rbf: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', rbf_ard: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', rbf_plus_bias: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', rbf_plus_white: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', rbf_times_matern52: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', short_lengthscale: 'GPmat''s ftc returns dL/d(noise variance) in the slot it documents as the gradient with respect to beta, so after the chain rule for beta = 1/variance the noise gradient is wrong by a factor of -variance^2 (equal to the oracle''s value before the chain rule is applied). The kernel gradients agree', small_noise: 'noise 1e-3 makes the matrix ill conditioned; the five non-GPy frameworks agree with each other and differ from GPy by 3e-4 relative, consistent with the GPy Cholesky jitter suspected in the conditioning benchmark; not yet confirmed'}

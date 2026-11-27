@@ -35,6 +35,7 @@ echo "== Runner contract (stub framework) =="
 "$GPY_PY" "$ROOT/scripts/check_descriptors.py" || status=1
 "$GPY_PY" "$ROOT/scripts/check_sparse_properties.py" || status=1
 "$GPY_PY" "$ROOT/scripts/check_timing.py" || status=1
+"$GPY_PY" "$ROOT/scripts/check_gradient.py" || status=1
 echo "== Laplace goldens vs independent numpy implementation =="
 "$GPY_PY" "$ROOT/scripts/check_laplace_independent.py" 2>/dev/null || status=1
 "$GPY_PY" "$ROOT/scripts/check_unsupported_approximations.py" gpy 2>/dev/null || status=1

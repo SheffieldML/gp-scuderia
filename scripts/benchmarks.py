@@ -185,6 +185,36 @@ def check_properties(bench, ll):
     return recs, table
 
 
+def oracle_gradient(doc, Xnew):
+    """GPy's analytic gradient, cross-checked against central differences of GPy's own log
+    likelihood. The generator refuses to emit a reference the two disagree on (relative 1e-4,
+    with an absolute floor of 1e-6 for gradients near zero)."""
+    from gp_scuderia import gpy_adapter
+    doc = dict(doc); doc["x-reference"] = {"Xnew": Xnew}
+    a, fd = gpy_adapter.gradient(doc), gpy_adapter.gradient_fd(doc)
+    worst = 0.0
+    for k in a:
+        x, y = np.atleast_1d(a[k]), np.atleast_1d(fd[k])
+        worst = max(worst, float(np.max(np.abs(x - y) / (1e-6 + np.abs(y)))))
+    if worst > 1e-4:
+        raise SystemExit("oracle gradient disagrees with finite differences (max rel %.2g) for %s" % (worst, doc.get("x-descriptors")))
+    return {k: (np.asarray(v).tolist() if np.ndim(v) else float(v)) for k, v in a.items()}, worst
+
+
+def gradient_deviation(g, ref, tol):
+    """Worst |a - r| / (atol + rtol |r|) over every wire parameter; 1.0 is the tolerance. Missing
+    or extra keys, or a different vector length, make the deviation infinite."""
+    if set(g) != set(ref):
+        return float("inf"), "parameter keys differ: %s" % sorted(set(g) ^ set(ref))
+    worst = 0.0
+    for k, r in ref.items():
+        a, r = np.atleast_1d(np.asarray(g[k], float)), np.atleast_1d(np.asarray(r, float))
+        if a.shape != r.shape:
+            return float("inf"), "%s has shape %s, expected %s" % (k, a.shape, r.shape)
+        worst = max(worst, float(np.max(np.abs(a - r) / (tol["atol"] + tol["rtol"] * np.abs(r)))))
+    return worst, None
+
+
 def generate(out, tier=None):
     import jsonschema
     from gp_scuderia import gpy_adapter
@@ -203,6 +233,8 @@ def generate(out, tier=None):
                 doc["x-tiers"] = case["tiers"]
             ref = gpy_adapter.reference(doc, Xnew)
             ref.update(oracle="GPy", tolerance=bench["tolerance"])
+            if bench.get("kind") == "gradient":
+                ref["gradient"], ref["gradient_fd_maxrel"] = oracle_gradient(doc, Xnew)
             doc["x-reference"] = ref
             p = out / ("%s__%s.yaml" % (bench["name"], case["id"]))
             dump(doc, p); to_json_twin(p)
@@ -278,15 +310,25 @@ def run(fw, data, mode, json_out):
     names = sorted(p.stem for p in data.glob("*.yaml"))
     docs = {n: load(data / (n + ".yaml")) for n in names}
     names = [n for n in names if docs[n].get("x-benchmark-kind") != "timing"]
-    runnable = [n for n in names if not F.missing(framework["_caps"], docs[n])]
+    def gradient_kind(n):
+        return docs[n].get("x-benchmark-kind") == "gradient"
+
+    def skip_reason(n):
+        why = F.missing(framework["_caps"], docs[n])
+        if not why and gradient_kind(n) and "gradient" not in framework.get("operations", []):
+            why = ["the framework file declares no gradient operation"]
+        return why
+    runnable = [n for n in names if not skip_reason(n)]
     extra = {}
     t0 = time.time()
-    raw = launch(fw, rn, [{"name": n, "golden": str(data / (n + ".json"))} for n in runnable], extra) if runnable else {}
+    raw = launch(fw, rn, [dict({"name": n, "golden": str(data / (n + ".json"))},
+                               **({"operations": ["gradient"]} if gradient_kind(n) else {})) for n in runnable], extra) if runnable else {}
     results, bad = [], 0
     for n in names:
         ref = docs[n]["x-reference"]; tol = ref["tolerance"]
-        rec = {"benchmark": n.split("__")[0], "case": n.split("__")[1], "name": n}
-        why = F.missing(framework["_caps"], docs[n])
+        rec = {"benchmark": n.split("__")[0], "case": n.split("__")[1], "name": n,
+               "kind": docs[n].get("x-benchmark-kind", "accuracy")}
+        why = skip_reason(n)
         if why:
             rec.update(status="skipped", reason=str(why), ok=True)
         else:
@@ -295,6 +337,12 @@ def run(fw, data, mode, json_out):
                 rec.update(status="refused", reason=g["refused"])
             elif "error" in g:
                 rec.update(status="error", reason=g["error"])
+            elif gradient_kind(n):
+                worst, why_not = gradient_deviation(g["gradient"], ref["gradient"], tol["gradient"])
+                rec.update(deviation={"gradient": worst}, tolerance={"gradient": 1.0},
+                           status="match" if worst <= 1.0 else "mismatch")
+                if why_not:
+                    rec["detail"] = why_not
             else:
                 dev = {"log_likelihood": abs(g["log_likelihood"] - ref["log_likelihood"]),
                        "mean": float(np.abs(np.array(g["mean"]) - ref["mean"]).max()),

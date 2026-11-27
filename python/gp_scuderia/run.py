@@ -26,12 +26,23 @@ def _time(func, doc, Xnew, spec, cold):
     return {"seconds_cold": cold, "seconds_median": float(med), "seconds_iqr": float(q3 - q1), "repeats": len(ts)}
 
 
-def run_tasks(func, tasks):
+def run_tasks(func, tasks, grad=None):
+    """grad is the framework's gradient(doc) -> {wire path: dLL/dparameter} or None if it has none."""
     results = {}
     for t in tasks:
         try:
             doc = load(t["golden"])
             Xnew = doc["x-reference"]["Xnew"]
+            ops = t.get("operations")
+            if ops == ["gradient"]:
+                if grad is None:
+                    raise UnsupportedByFramework("this adapter provides no gradient")
+                g = grad(doc)
+                results[t["name"]] = {"gradient": {k: (np.asarray(v, float).tolist() if np.ndim(v) else float(v))
+                                                   for k, v in g.items()}}
+                continue
+            if ops and set(ops) - {"log_likelihood", "predict"}:
+                raise UnsupportedByFramework("operations %s: gradient must be requested on its own" % ops)
             t0 = time.perf_counter()
             g = func(doc, Xnew)          # the first call in this process for this task is the cold one
             _cold = time.perf_counter() - t0
@@ -54,10 +65,11 @@ def main(argv=None):
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     module, name = a.entry.split(":")
-    func = getattr(importlib.import_module(module), name)
+    mod = importlib.import_module(module)
+    func, grad = getattr(mod, name), getattr(mod, "gradient", None)
     task = json.loads(pathlib.Path(a.task).read_text())
-    out = {"schema": "gp-scuderia-result/1", "runtime": {"python": platform.python_version()},
-           "results": run_tasks(func, task["tasks"])}
+    out = {"schema": "gp-scuderia-result/2", "runtime": {"python": platform.python_version()},
+           "results": run_tasks(func, task["tasks"], grad)}
     pathlib.Path(a.out).write_text(json.dumps(out))
 
 

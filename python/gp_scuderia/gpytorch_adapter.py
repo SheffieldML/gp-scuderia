@@ -86,3 +86,42 @@ def reference(doc, Xnew):
         with torch.no_grad():
             pred = lik(model(torch.tensor(Xn)))
     return reference_from_transformed(doc, ll, pred.mean.numpy(), pred.variance.numpy(), Xn)
+
+
+def _modules(k, node, path, out):
+    """wire path -> (module, property name) for each differentiable parameter."""
+    if "parts" in node:
+        for i, (kp, n) in enumerate(zip(k.kernels, node["parts"])):
+            _modules(kp, n, "%s.parts.%d" % (path, i), out)
+        return
+    t = node["type"]
+    if t in ("kern.rbf", "kern.matern32", "kern.matern52"):
+        out[path + ".variance"] = (k, "outputscale")
+        out[path + ".lengthscale"] = (k.base_kernel, "lengthscale")
+    elif t == "kern.bias":
+        out[path + ".variance"] = (k, "constant")
+    elif t == "kern.linear":
+        out[path + ".variance"] = (k, "variance")
+
+
+def gradient(doc):
+    """dLL/d(wire parameter): autograd to the raw (unconstrained) parameter, then divide by
+    d(natural value)/d(raw), taken from GPyTorch's own constraint (elementwise)."""
+    from .params import wire_paths
+    wire_paths(doc)
+    model, lik = from_wire(doc)
+    mods = {}
+    _modules(model.covar_module, doc["kernel"], "kernel", mods)
+    mods["likelihood.variance"] = (lik, "noise")
+    model.train(); lik.train()
+    with gpytorch.settings.cholesky_jitter(1e-12, 1e-12), gpytorch.settings.max_cholesky_size(10 ** 9):
+        mll = gpytorch.mlls.ExactMarginalLogLikelihood(lik, model)
+        ll = mll(model(*model.train_inputs), model.train_targets) * len(model.train_targets)
+    out = {}
+    for path, (mod, prop) in mods.items():
+        raw = getattr(mod, "raw_" + prop)
+        dll = torch.autograd.grad(ll, raw, retain_graph=True)[0]
+        dnat = torch.autograd.grad(getattr(mod, prop).sum(), raw)[0]
+        g = (dll / dnat).detach().numpy().ravel()
+        out[path] = g.tolist() if g.size > 1 else float(g[0])
+    return out

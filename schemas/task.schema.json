@@ -3,25 +3,66 @@
   "title": "gp-scuderia runner task file",
   "description": "Input to a framework runner: which goldens to run. The runner reads each golden's own x-reference.Xnew.",
   "type": "object",
-  "required": ["schema", "tasks"],
+  "required": [
+    "schema",
+    "tasks"
+  ],
   "additionalProperties": false,
   "properties": {
-    "schema": {"const": "gp-scuderia-task/1"},
+    "schema": {
+      "enum": [
+        "gp-scuderia-task/1",
+        "gp-scuderia-task/2"
+      ],
+      "description": "/2 is /1 plus the optional per-task operations list; every /1 file is also a valid /2 file."
+    },
     "tasks": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "golden"],
+        "required": [
+          "name",
+          "golden"
+        ],
         "additionalProperties": false,
         "properties": {
-          "name": {"type": "string"},
-          "golden": {"type": "string", "description": "Path to the golden (JSON twin for Octave runners)"},
+          "name": {
+            "type": "string"
+          },
+          "golden": {
+            "type": "string",
+            "description": "Path to the golden (JSON twin for Octave runners)"
+          },
           "timing": {
             "type": "object",
             "description": "Optional. Time the evaluation (build model from the golden, log likelihood and prediction): one cold call, then warmup untimed calls, then repeats timed calls. The result then carries timing.",
-            "required": ["repeats"],
+            "required": [
+              "repeats"
+            ],
             "additionalProperties": false,
-            "properties": {"repeats": {"type": "integer", "minimum": 1}, "warmup": {"type": "integer", "minimum": 0}}
+            "properties": {
+              "repeats": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "warmup": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "log_likelihood",
+                "predict",
+                "gradient"
+              ]
+            },
+            "description": "Optional (contract /2). Default is [log_likelihood, predict]. gradient returns d log likelihood / d each wire parameter, keyed by its path in the wire tree, in wire units. A task asking only for gradient returns only gradient."
           }
         }
       }
