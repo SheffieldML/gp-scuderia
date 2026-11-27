@@ -116,8 +116,27 @@ jobs:
         if: always()
         with: {name: results-gpml, path: results}
 
+  gpmat:
+    # GPmat under Octave, through the same route as GPML (CIP-0002). Cloned at its default branch
+    # for now; pin a commit once green. continue-on-error until it has run green once on ubuntu-latest.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install numpy pyyaml jsonschema
+      - run: sudo apt-get update && sudo apt-get install -y octave
+      - run: git clone --depth 1 https://github.com/SheffieldML/GPmat.git gpmat
+      - run: echo "GPMAT=$PWD/gpmat" >> "$GITHUB_ENV"
+      - run: echo "GPMAT_VERSION=$(git -C gpmat rev-parse --short HEAD)" >> "$GITHUB_ENV"
+      - run: python scripts/compare.py gpmat --json results/gpmat.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: results-gpmat, path: results}
+
   report:
-    needs: [oracle, frameworks, gpc, gpml]
+    needs: [oracle, frameworks, gpc, gpml, gpmat]
     if: always()
     runs-on: ubuntu-latest
     steps:

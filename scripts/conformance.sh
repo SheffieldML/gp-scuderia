@@ -6,6 +6,7 @@
 #   PYTHON     interpreter with numpy, pyyaml (and the gpc package for GPc), default python3
 #   GPY_PY     interpreter with GPy installed (default: ./.venv-gpy/bin/python, else $PYTHON)
 #   GPMAT      GPmat checkout; enables the Octave check (needs octave-cli)
+#   GPML       GPML checkout (see ci/gpml.txt); enables the GPML comparison
 #   HDF5_LIB   extra library path for Octave on macOS, optional
 set -u
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -41,5 +42,10 @@ echo "== GPmat (Octave) =="
 if [ -n "${GPMAT:-}" ] && command -v octave-cli >/dev/null 2>&1; then
   DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-}" GPMAT="$GPMAT" \
     octave-cli --quiet "$ROOT/octave/conformance_gpmat.m" || status=1
+  DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-}" "$PY" "$ROOT/scripts/compare.py" gpmat || status=1
 else echo "skipped (set GPMAT and install octave-cli)"; fi
+echo "== GPML (Octave) =="
+if [ -n "${GPML:-}" ] && command -v octave-cli >/dev/null 2>&1; then
+  DYLD_FALLBACK_LIBRARY_PATH="${HDF5_LIB:-}" "$PY" "$ROOT/scripts/compare.py" gpml || status=1
+else echo "skipped (set GPML and install octave-cli)"; fi
 exit $status

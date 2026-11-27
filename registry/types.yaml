@@ -362,3 +362,5 @@ framework_verification:
     refuses: []
   gpml:
     refuses: [dtcvar_ard_data, dtcvar_mean_constant, ftc_icm, ftc_lcm]   # no DTCVAR bound, no coregionalisation
+  gpmat:
+    refuses: [ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson]   # multi-output and non-Gaussian likelihoods

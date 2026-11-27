@@ -1,6 +1,6 @@
 """Compare one framework against every golden's x-reference and record the result.
 
-Usage: python scripts/compare.py <gpy|gpflow|gpytorch|gpjax|gpc|gpml> [--json out.json] [--mode pinned|latest]
+Usage: python scripts/compare.py <gpy|gpflow|gpytorch|gpjax|gpc|gpml|gpmat> [--json out.json] [--mode pinned|latest]
 
 Each golden gets a status: match (within the golden's tolerance), mismatch, refused
 (the adapter raised UnsupportedByFramework) or error. The registry's
@@ -22,7 +22,8 @@ PACKAGES = {
     "gpytorch": ["gpytorch", "torch", "numpy"],
     "gpjax": ["gpjax", "jax", "jaxlib", "numpyro", "numpy"],
     "gpc": ["gpc", "numpy"],
-    "gpml": [],   # not a Python package: Octave and GPML versions are recorded from the run
+    "gpml": [],   # not Python packages: Octave and toolbox versions are recorded from the run
+    "gpmat": [],
 }
 
 
@@ -36,18 +37,21 @@ def versions(fw):
     return out
 
 
-def gpml_runner(extra):
-    """Run octave/gpml/runGpml.m once (GPML env var points at the GPML checkout) and serve its results."""
+OCTAVE_RUNNERS = {"gpml": ("GPML", "octave/gpml/runGpml.m"), "gpmat": ("GPMAT", "octave/gpmat/runGpmat.m")}
+
+
+def octave_runner(fw, extra):
+    """Run the framework's Octave script once and serve its raw results (env var names the checkout)."""
     import os, subprocess, tempfile
-    gdir = os.environ.get("GPML")
-    if not gdir:
-        raise SystemExit("Set GPML to a GPML checkout (see ci/gpml.txt).")
+    var, script = OCTAVE_RUNNERS[fw]
+    if not os.environ.get(var):
+        raise SystemExit("Set %s to a %s checkout." % (var, fw))
     out = pathlib.Path(tempfile.mkdtemp()) / "gpml.json"
     env = dict(os.environ, GPSCUDERIA_ROOT=str(root), GPSCUDERIA_OUT=str(out))
-    subprocess.run(["octave-cli", "--no-gui", str(root / "octave/gpml/runGpml.m")], env=env, check=True,
+    subprocess.run(["octave-cli", "--no-gui", str(root / script)], env=env, check=True,
                    stdout=subprocess.DEVNULL)
     raw = json.loads(out.read_text())
-    extra.update(octave=raw["octave"], gpml=raw["gpml"])
+    extra.update(octave=raw["octave"], **{fw: raw[fw]})
 
     def run(doc, Xnew, name):
         r = raw["results"][name]
@@ -77,8 +81,8 @@ def main():
     registry = yaml.safe_load((root / "registry/types.yaml").read_text())
     expected_refusals = set(registry.get("framework_verification", {}).get(fw, {}).get("refuses", []))
     extra = {}
-    if fw == "gpml":
-        run = gpml_runner(extra)
+    if fw in OCTAVE_RUNNERS:
+        run = octave_runner(fw, extra)
     else:
         base = runner(fw)
         run = lambda doc, Xnew, name: base(doc, Xnew)
