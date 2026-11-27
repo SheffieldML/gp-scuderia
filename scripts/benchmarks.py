@@ -215,7 +215,7 @@ def gradient_deviation(g, ref, tol):
     return worst, None
 
 
-LATENT_KINDS = {"latent_bound": "bound", "latent_collapse": "bound", "psi": "psi", "latent_gradient": "gradient"}   # kind -> runner operation
+LATENT_KINDS = {"latent_bound": "bound", "latent_collapse": "bound", "psi": "psi", "latent_gradient": "gradient", "latent_timing": "bound"}   # kind -> runner operation
 
 
 def make_latent_model(bench, case, index):
@@ -288,7 +288,7 @@ def latent_reference(bench, doc):
     """Oracle reference for a latent case, refused if its independent cross-check fails."""
     from gp_scuderia import gpy_adapter
     kind = bench["kind"]
-    if kind == "latent_bound":
+    if kind in ("latent_bound", "latent_timing"):
         ref = gpy_adapter.bound(doc); ref["oracle"] = "GPy"
     elif kind == "latent_collapse":
         mu = doc["latent"]["mean"]
@@ -383,21 +383,31 @@ def timing(fw, data, tier, threads, json_out):
     framework = F.load_frameworks()[fw]
     rn = framework["runners"][0]
     data = pathlib.Path(data).resolve()
-    specs = {b["name"]: b for b in benchmarks() if b.get("kind") == "timing"}
+    TIMED = ("timing", "latent_timing")
+    specs = {b["name"]: b for b in benchmarks() if b.get("kind") in TIMED}
     docs = {p.stem: load(p) for p in sorted(data.glob("*.yaml"))}
-    names = [n for n, d in docs.items() if d.get("x-benchmark-kind") == "timing" and tier in d.get("x-tiers", ["scheduled"])
-             or (d.get("x-benchmark-kind") == "timing" and tier == "scheduled")]
-    runnable = [n for n in names if not F.missing(framework["_caps"], docs[n])]
+    names = [n for n, d in docs.items() if d.get("x-benchmark-kind") in TIMED and tier in d.get("x-tiers", ["scheduled"])
+             or (d.get("x-benchmark-kind") in TIMED and tier == "scheduled")]
+
+    def why_not(n):
+        why = F.missing(framework["_caps"], docs[n])
+        kind = docs[n]["x-benchmark-kind"]
+        if not why and kind in LATENT_KINDS and LATENT_KINDS[kind] not in framework.get("operations", []):
+            why = ["the framework file declares no %s operation" % LATENT_KINDS[kind]]
+        return why
+    runnable = [n for n in names if not why_not(n)]
     extra, t0 = {}, time.time()
-    tasks = [{"name": n, "golden": str(data / (n + ".json")), "timing": specs[n.split("__")[0]]["timing"]} for n in runnable]
+    tasks = [dict({"name": n, "golden": str(data / (n + ".json")), "timing": specs[n.split("__")[0]]["timing"]},
+                  **({"operations": ["bound"]} if docs[n]["x-benchmark-kind"] == "latent_timing" else {})) for n in runnable]
     raw = launch(fw, rn, tasks, extra, threads=1 if threads == "1" else None) if tasks else {}
     results = []
     for n in names:
         d = docs[n]; ref = d["x-reference"]; bname, cid = n.split("__")
+        latent = d["x-benchmark-kind"] == "latent_timing"
         rec = {"benchmark": bname, "case": cid, "name": n, "n": d["x-descriptors"]["n"],
-               "input_dim": d["input_dim"], "approximation": d["approximation"],
+               "input_dim": d["latent"]["dim"] if latent else d["input_dim"], "approximation": d["approximation"],
                "inducing": len(d["inducing_inputs"]) if "inducing_inputs" in d else None}
-        why = F.missing(framework["_caps"], d)
+        why = why_not(n)
         if why:
             rec.update(status="skipped", reason=str(why))
         else:
@@ -408,8 +418,13 @@ def timing(fw, data, tier, threads, json_out):
                 rec.update(status="error", reason=g["error"][:200])
             else:
                 tol = ref["tolerance"]
-                dev = float(abs(g["log_likelihood"] - ref["log_likelihood"]))
-                rec.update(status="timed", **g["timing"], ll_deviation=dev, sane=dev <= tol["log_likelihood"])
+                if latent:
+                    dev = float(abs(g["bound"]["bound_without_kl"] - ref["bound_without_kl"]))
+                    sane_tol = tol["bound_without_kl"]
+                else:
+                    dev = float(abs(g["log_likelihood"] - ref["log_likelihood"]))
+                    sane_tol = tol["log_likelihood"]
+                rec.update(status="timed", **g["timing"], ll_deviation=dev, sane=dev <= sane_tol)
         results.append(rec)
         print("%-32s %-8s %s" % (n, rec["status"], ("median %.4gs cold %.4gs%s" % (
               rec["seconds_median"], rec["seconds_cold"], "" if rec["sane"] else "  LL DISAGREES"))
@@ -434,7 +449,7 @@ def run(fw, data, mode, json_out):
                 known[(f, "%s__%s" % (b["name"], cid))] = why
     names = sorted(p.stem for p in data.glob("*.yaml"))
     docs = {n: load(data / (n + ".yaml")) for n in names}
-    names = [n for n in names if docs[n].get("x-benchmark-kind") != "timing"]
+    names = [n for n in names if docs[n].get("x-benchmark-kind") not in ("timing", "latent_timing")]
     def gradient_kind(n):
         return docs[n].get("x-benchmark-kind") == "gradient"
 

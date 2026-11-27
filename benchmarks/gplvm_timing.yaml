@@ -1,0 +1,21 @@
+name: gplvm_timing
+kind: latent_timing
+description: >
+  Wall-clock cost of the collapsed Bayesian GP-LVM bound (the `bound` operation, CIP-0006) as the
+  number of points n and the number of inducing points M grow, at a fixed latent dimension and
+  output dimension. Answers: how does each framework scale on the psi-statistic path, whose cost
+  is O(n M^2 q) against O(n M^2) for sparse regression? The scheduled tier only; there is no pr
+  tier. The accuracy tolerance is a sanity check against GPy, and timing never gates the build.
+seed: 14
+base:
+  n: 100
+  latent_dim: 3
+  output_dim: 5
+  inducing: 10
+  noise: 0.1
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.2}
+grid:
+  n: [100, 200, 400, 800, 1600]
+  inducing: [10, 20, 40]
+timing: {repeats: 5, warmup: 1}
+tolerance: {bound_without_kl: 1.0e-3, kl: 1.0e-8}

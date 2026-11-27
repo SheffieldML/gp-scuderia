@@ -51,8 +51,13 @@ def run_tasks(func, tasks, grad=None, bound=None, psi=None):
                 fn = {"bound": bound, "psi": psi}[ops[0]]
                 if fn is None:
                     raise UnsupportedByFramework("this adapter provides no %s operation" % ops[0])
+                t0 = time.perf_counter()
+                out = fn(doc)
+                _cold = time.perf_counter() - t0
                 results[t["name"]] = {ops[0]: {k: (float(v) if np.ndim(v) == 0 else _tolist(np.asarray(v, float)))
-                                               for k, v in fn(doc).items()}}
+                                               for k, v in out.items()}}
+                if t.get("timing"):
+                    results[t["name"]]["timing"] = _time(lambda d, _x: fn(d), doc, None, t["timing"], cold=_cold)
                 continue
             if ops and set(ops) - {"log_likelihood", "predict"}:
                 raise UnsupportedByFramework("operations %s: gradient, bound and psi must each be requested on their own" % ops)
