@@ -22,6 +22,10 @@ jobs:
       - run: python scripts/record_check.py results/framework_files.json framework-files "Framework files valid; derived expectations match the snapshot in both directions" -- python scripts/check_framework_files.py
       - run: python scripts/record_check.py results/runner_contract.json runner-contract "Runner contract: schemas, crash isolation, per-task errors" -- python scripts/check_runner_contract.py
       - run: python scripts/compare.py gpy --mode pinned --json results/gpy-pinned.json
+      - run: python scripts/benchmarks.py generate --out bench-data
+      - run: python scripts/benchmarks.py run gpy --data bench-data --mode pinned --json results/bench-gpy-pinned.json
+      - uses: actions/upload-artifact@v4
+        with: {name: bench-data, path: bench-data}
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: results-oracle, path: results}
@@ -42,7 +46,7 @@ jobs:
 
   frameworks:
     # Each framework is installed fresh and run live against every golden.
-    needs: matrix
+    needs: [matrix, oracle]
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.mode == 'latest' }}   # upstream drift is news, not a broken build
     strategy:
@@ -62,6 +66,9 @@ jobs:
       - run: python scripts/compare.py ${{ matrix.framework }} --mode ${{ matrix.mode }} --json results/${{ matrix.framework }}-${{ matrix.mode }}.json
       - if: matrix.unsupported_check
         run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "dtc and pitc are refused, not substituted" -- python scripts/check_unsupported_approximations.py ${{ matrix.framework }}
+      - uses: actions/download-artifact@v4
+        with: {name: bench-data, path: bench-data}
+      - run: python scripts/benchmarks.py run ${{ matrix.framework }} --data bench-data --mode ${{ matrix.mode }} --json results/bench-${{ matrix.framework }}-${{ matrix.mode }}.json
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: "results-${{ matrix.framework }}-${{ matrix.mode }}", path: results}

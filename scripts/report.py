@@ -13,6 +13,7 @@ a = ap.parse_args()
 docs = [json.loads(p.read_text()) for p in sorted(pathlib.Path(a.results).rglob("*.json"))]
 comps = [d for d in docs if "framework" in d]
 checks = [d for d in docs if "check" in d]
+benches = [d for d in docs if "benchmark_run" in d]
 cols = sorted({(d["framework"], d["mode"]) for d in comps})
 goldens = sorted({r["golden"] for d in comps for r in d["results"]})
 by = {(d["framework"], d["mode"], r["golden"]): r for d in comps for r in d["results"]}
@@ -37,7 +38,8 @@ def cell(r):
 
 unexpected = [(d["framework"], d["mode"], r) for d in comps for r in d["results"] if not r["ok"]]
 bad_checks = [c for c in checks if not c["ok"]]
-verdict = "PASS" if not unexpected and not bad_checks else "FAIL"
+bench_bad = [(d["benchmark_framework"], d["mode"], r) for d in benches for r in d["results"] if not r["ok"]]
+verdict = "PASS" if not unexpected and not bad_checks and not bench_bad else "FAIL"
 
 md = ["# gp-scuderia conformance report", "",
       "**Verdict: %s** — %d unexpected result(s), %d failing check(s)." % (verdict, len(unexpected), len(bad_checks)), "",
@@ -55,6 +57,33 @@ if unexpected:
     md += ["", "## Unexpected results", ""]
     for f, m, r in unexpected:
         md.append("- **%s (%s) / %s**: expected %s, got %s. %s" % (f, m, r["golden"], r["expected"], r["status"], r.get("reason", "")))
+if benches:
+    bcols = sorted({(d["benchmark_framework"], d["mode"]) for d in benches})
+    bnames = sorted({r["name"] for d in benches for r in d["results"]})
+    bby = {(d["benchmark_framework"], d["mode"], r["name"]): r for d in benches for r in d["results"]}
+
+    def bcell(r):
+        if r is None:
+            return "-"
+        if not r["ok"]:
+            return "UNEXPECTED " + r["status"]
+        if r["status"] in ("skipped", "known"):
+            return r["status"]
+        f = frac(r)
+        return "match %.0f%%" % (100 * f) if f is not None else r["status"]
+
+    md += ["", "## Accuracy benchmarks", "",
+           "Seeded generated models, reference from the GPy oracle. `skipped` means the framework lacks a "
+           "required capability; `known` is a recorded, explained mismatch.", "",
+           "| case | " + " | ".join("%s (%s)" % c for c in bcols) + " |", "|---|" + "---|" * len(bcols)]
+    for n in bnames:
+        md.append("| %s | %s |" % (n, " | ".join(bcell(bby.get((f, m, n))) for f, m in bcols)))
+    kn = sorted({(f, r["name"], r.get("reason", "")) for f, m, r in
+                 [(d["benchmark_framework"], d["mode"], r) for d in benches for r in d["results"]] if r["status"] == "known"})
+    if kn:
+        md += ["", "Known mismatches:", ""] + ["- %s / %s: %s" % k for k in kn]
+    for f, m, r in bench_bad:
+        md.append("- **UNEXPECTED %s (%s) / %s**: %s" % (f, m, r["name"], r.get("reason", "")))
 if checks:
     md += ["", "## Other checks", "", "| check | result | seconds | description |", "|---|---|---|---|"]
     for c in checks:
@@ -86,6 +115,16 @@ for d in comps:
     h.append("<li><b>%s</b> (%s, python %s): %s</li>" % (d["framework"], d["mode"], d["python"],
              html.escape(", ".join("%s %s" % (k, v) for k, v in d["versions"].items() if v))))
 h.append("</ul>")
+if benches:
+    h.append("<h2>Accuracy benchmarks</h2><table><tr><th>case</th>%s</tr>" % "".join("<th>%s<br>%s</th>" % c for c in bcols))
+    for n in bnames:
+        row = ""
+        for f, m in bcols:
+            r = bby.get((f, m, n))
+            cls = "na" if r is None else "bad" if not r["ok"] else "ref" if r["status"] in ("skipped", "known") else "good"
+            row += '<td class="%s" title="%s">%s</td>' % (cls, html.escape((r or {}).get("reason", "")), bcell(r))
+        h.append("<tr><td>%s</td>%s</tr>" % (n, row))
+    h.append("</table>")
 if checks:
     h.append("<h2>Other checks</h2><table><tr><th>check</th><th>result</th><th>s</th><th>description</th></tr>")
     for c in checks:
