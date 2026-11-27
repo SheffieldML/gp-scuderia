@@ -1,0 +1,16 @@
+name: gpjax
+runners:
+  - id: python
+    kind: python
+    entry: gp_scuderia.gpjax_adapter:reference
+    install: {pinned: ci/pinned-gpjax.txt, latest: ci/latest-gpjax.txt}
+    versions: [gpjax, jax, jaxlib, numpyro, numpy]
+ci:
+  modes: [pinned, latest]     # latest runs on the weekly schedule only
+  unsupported_check: true      # dtc and pitc are refused, not substituted
+capabilities:
+  approximations: [ftc, dtcvar]
+  kernels: [rbf, matern32, matern52, white, bias, linear, add, prod]
+  likelihoods: [gaussian]
+  inference: [exact]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

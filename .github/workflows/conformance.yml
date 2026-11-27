@@ -19,48 +19,51 @@ jobs:
       - run: python scripts/record_check.py results/validate.json validate "Goldens satisfy the JSON schema" -- python scripts/validate.py
       - run: python scripts/record_check.py results/conformance_gpy.json gpy-roundtrip "GPy export/import round trip" -- python scripts/conformance_gpy.py
       - run: python scripts/record_check.py results/laplace_independent.json laplace-independent "Laplace goldens against an independent numpy implementation" -- python scripts/check_laplace_independent.py
+      - run: python scripts/record_check.py results/framework_files.json framework-files "Framework files valid; derived expectations match the snapshot in both directions" -- python scripts/check_framework_files.py
       - run: python scripts/compare.py gpy --mode pinned --json results/gpy-pinned.json
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: results-oracle, path: results}
 
-  frameworks:
-    # Each framework is installed fresh and run live against every golden.
-    # Pinned versions here; the frameworks-latest job below detects upstream drift.
+  matrix:
+    # The job matrix comes from frameworks/*.yaml (CIP-0003). Latest-version entries are added on
+    # scheduled and manual runs only.
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        framework: [gpflow, gpytorch, gpjax]
-        mode: [pinned]
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
-      - run: pip install -r ci/${{ matrix.mode }}-${{ matrix.framework }}.txt
+      - run: pip install pyyaml
+      - id: m
+        run: python scripts/ci_matrix.py ${{ (github.event_name != 'push' && github.event_name != 'pull_request') && '--latest' || '' }} --github-output
+
+  frameworks:
+    # Each framework is installed fresh and run live against every golden.
+    needs: matrix
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.mode == 'latest' }}   # upstream drift is news, not a broken build
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - if: matrix.kind == 'python'
+        run: pip install -r ${{ matrix.install }}
+      - if: matrix.kind == 'octave'
+        run: |
+          pip install numpy pyyaml jsonschema
+          sudo apt-get update && sudo apt-get install -y octave
+          python scripts/ci_fetch.py ${{ matrix.framework }} fetched
       - run: python scripts/compare.py ${{ matrix.framework }} --mode ${{ matrix.mode }} --json results/${{ matrix.framework }}-${{ matrix.mode }}.json
-      - run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "dtc and pitc are refused, not substituted" -- python scripts/check_unsupported_approximations.py ${{ matrix.framework }}
+      - if: matrix.unsupported_check
+        run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "dtc and pitc are refused, not substituted" -- python scripts/check_unsupported_approximations.py ${{ matrix.framework }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: "results-${{ matrix.framework }}-${{ matrix.mode }}", path: results}
-
-  frameworks-latest:
-    if: github.event_name != 'push' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    continue-on-error: true   # upstream drift is news, not a broken build
-    strategy:
-      fail-fast: false
-      matrix:
-        framework: [gpy, gpflow, gpytorch, gpjax]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
-      - run: pip install -r ci/latest-${{ matrix.framework }}.txt
-      - run: python scripts/compare.py ${{ matrix.framework }} --mode latest --json results/${{ matrix.framework }}-latest.json
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with: {name: "results-${{ matrix.framework }}-latest", path: results}
 
   gpc:
     # GPc C++ reader and CLI, plus the GPc Python package, against the goldens.
@@ -92,48 +95,8 @@ jobs:
         if: always()
         with: {name: results-gpc, path: results}
 
-  gpml:
-    # GPML under Octave: an independent MATLAB-lineage implementation (CIP-0002).
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
-      - run: pip install numpy pyyaml jsonschema
-      - run: sudo apt-get update && sudo apt-get install -y octave
-      - name: Fetch GPML (checksum-verified)
-        run: |
-          . ci/gpml.txt
-          curl -fsSL -o gpml.zip "$url"
-          echo "$sha256  gpml.zip" | sha256sum -c -
-          unzip -q gpml.zip -d gpml
-          echo "GPML_VERSION=$version" >> "$GITHUB_ENV"
-          echo "GPML=$(echo $PWD/gpml/gpml-matlab-*)" >> "$GITHUB_ENV"
-      - run: python scripts/compare.py gpml --json results/gpml.json
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with: {name: results-gpml, path: results}
-
-  gpmat:
-    # GPmat under Octave, through the same route as GPML (CIP-0002). Cloned at its default branch
-    # at a pinned commit (the first with the FITC log-likelihood fix).
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
-      - run: pip install numpy pyyaml jsonschema
-      - run: sudo apt-get update && sudo apt-get install -y octave
-      - run: git clone https://github.com/SheffieldML/GPmat.git gpmat && git -C gpmat checkout e482881f
-      - run: echo "GPMAT=$PWD/gpmat" >> "$GITHUB_ENV"
-      - run: echo "GPMAT_VERSION=$(git -C gpmat rev-parse --short HEAD)" >> "$GITHUB_ENV"
-      - run: python scripts/compare.py gpmat --json results/gpmat.json
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with: {name: results-gpmat, path: results}
-
   report:
-    needs: [oracle, frameworks, gpc, gpml, gpmat]
+    needs: [oracle, frameworks, gpc]
     if: always()
     runs-on: ubuntu-latest
     steps:

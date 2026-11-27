@@ -1,0 +1,27 @@
+name: gpml
+runners:
+  - id: octave
+    kind: octave
+    script: octave/gpml/runGpml.m
+    env: GPML
+    versions_from_run: true
+    fetch:
+      version: "4.2"
+      url: http://gaussianprocess.org/gpml/code/matlab/release/gpml-matlab-v4.2-2018-06-11.zip
+      sha256: 0232bf431b427d5151a8e2a955af6079f3818dc205ac25f73c0d94c6e234b277
+    apt: [octave]
+ci:
+  modes: [pinned]
+capabilities:
+  approximations: [ftc, fitc]          # no DTCVAR bound in GPML
+  kernels:
+    - rbf
+    - matern32: {options: []}          # covMaterniso has no ARD
+    - matern52: {options: []}
+    - white
+    - bias
+    - add
+    - prod
+  likelihoods: [gaussian, bernoulli, poisson]
+  inference: [exact, laplace]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]
