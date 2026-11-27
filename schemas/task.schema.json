@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gp-scuderia runner task file",
+  "description": "Input to a framework runner: which goldens to run. The runner reads each golden's own x-reference.Xnew.",
+  "type": "object",
+  "required": ["schema", "tasks"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "gp-scuderia-task/1"},
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "golden"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string"},
+          "golden": {"type": "string", "description": "Path to the golden (JSON twin for Octave runners)"}
+        }
+      }
+    }
+  }
+}

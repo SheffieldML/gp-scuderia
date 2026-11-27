@@ -3,13 +3,16 @@
 Usage: python scripts/compare.py <framework> [--json out.json] [--mode pinned|latest]
 where <framework> is any frameworks/<name>.yaml.
 
+Frameworks are run through the process-level JSON contract (python -m gp_scuderia.run, or the
+Octave scripts): see schemas/task.schema.json and schemas/result.schema.json.
+
 Each golden gets a status: match (within the golden's tolerance), mismatch, refused
 (the adapter raised UnsupportedByFramework) or error. The registry's
 expected outcome is derived from the golden's features and the framework file's declared
 capabilities (scripts/frameworks.py); any other outcome is reported as unexpected and makes
 the exit code non-zero.
 """
-import argparse, importlib, importlib.metadata as md, json, pathlib, platform, sys, time, traceback
+import argparse, importlib.metadata as md, json, pathlib, platform, sys, time, traceback
 import numpy as np
 import yaml
 
@@ -32,33 +35,44 @@ def versions(runner):
     return out
 
 
-def octave_runner(fw, runner, extra):
-    """Run the framework's Octave script once and serve its raw results (env var names the checkout)."""
+def launch(fw, runner, tasks, extra):
+    """Run tasks through the process-level contract (task file in, result file out).
+
+    A crash of the whole process triggers one isolated retry per task, so one bad golden
+    cannot hide the others; a task that still crashes is reported as an error.
+    """
     import os, subprocess, tempfile
-    var, script = runner["env"], runner["script"]
-    if not os.environ.get(var):
-        raise SystemExit("Set %s to a %s checkout." % (var, fw))
-    out = pathlib.Path(tempfile.mkdtemp()) / "raw.json"
-    env = dict(os.environ, GPSCUDERIA_ROOT=str(root), GPSCUDERIA_OUT=str(out))
-    subprocess.run(["octave-cli", "--no-gui", str(root / script)], env=env, check=True,
-                   stdout=subprocess.DEVNULL)
-    raw = json.loads(out.read_text())
-    extra.update(octave=raw["octave"], **{fw: raw[fw]})
+    tmp = pathlib.Path(tempfile.mkdtemp())
+    env = dict(os.environ, GPSCUDERIA_ROOT=str(root),
+               PYTHONPATH=os.pathsep.join(filter(None, [str(root / "python"), os.environ.get("PYTHONPATH")])))
+    if runner["kind"] == "octave" and not os.environ.get(runner["env"]):
+        raise SystemExit("Set %s to a %s checkout." % (runner["env"], fw))
 
-    def run(doc, Xnew, name):
-        r = raw["results"][name]
-        if "refused" in r:
-            raise UnsupportedByFramework(r["refused"])
-        if "error" in r:
-            raise RuntimeError(r["error"])
-        return r
-    return run
+    def once(batch, tag):
+        task, out = tmp / (tag + "-task.json"), tmp / (tag + "-result.json")
+        task.write_text(json.dumps({"schema": "gp-scuderia-task/1", "tasks": batch}))
+        if runner["kind"] == "octave":
+            cmd = ["octave-cli", "--no-gui", str(root / runner["script"])]
+            env.update(GPSCUDERIA_TASK=str(task), GPSCUDERIA_OUT=str(out))
+        else:
+            cmd = [sys.executable, "-m", "gp_scuderia.run", "--entry", runner["entry"],
+                   "--task", str(task), "--out", str(out)]
+        p = subprocess.run(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        if p.returncode != 0 or not out.exists():
+            return None, "runner crashed (rc=%s): %s" % (p.returncode, p.stderr.strip()[-300:])
+        return json.loads(out.read_text()), None
 
-
-def python_runner(runner):
-    module, func = runner["entry"].split(":")
-    base = getattr(importlib.import_module(module), func)
-    return lambda doc, Xnew, name: base(doc, Xnew)
+    raw, why = once(tasks, "batch")
+    if raw is None:
+        results = {}
+        for t in tasks:
+            r, why = once([t], t["name"])
+            results[t["name"]] = r["results"][t["name"]] if r else {"error": why}
+        return results
+    for k in ("octave", fw):
+        if k in raw:
+            extra[k] = raw[k]
+    return raw["results"]
 
 
 def main():
@@ -71,10 +85,12 @@ def main():
     framework = frameworks[fw]
     rn = framework["runners"][0]
     extra = {}
-    run = octave_runner(fw, rn, extra) if rn["kind"] == "octave" else python_runner(rn)
+    paths = sorted((root / "examples").glob("*.yaml"))
+    tasks = [{"name": p.stem, "golden": str(p.with_suffix(".json"))} for p in paths]
+    raw = launch(fw, rn, tasks, extra)
     expected_refusals = set()
     results, unexpected = [], 0
-    for p in sorted((root / "examples").glob("*.yaml")):
+    for p in paths:
         name = p.stem
         doc = load(p); ref = doc["x-reference"]; tol = ref["tolerance"]
         why = F.missing(framework["_caps"], doc)
@@ -83,7 +99,11 @@ def main():
         rec = {"golden": name, "expected": "refused" if why else "match"}
         t0 = time.time()
         try:
-            g = run(doc, ref["Xnew"], name)
+            g = raw[name]
+            if "refused" in g:
+                raise UnsupportedByFramework(g["refused"])
+            if "error" in g:
+                raise RuntimeError(g["error"])
             dev = {"log_likelihood": abs(g["log_likelihood"] - ref["log_likelihood"]),
                    "mean": float(np.abs(np.array(g["mean"]) - ref["mean"]).max()),
                    "var": float(np.abs(np.array(g["var"]) - ref["var"]).max())}
