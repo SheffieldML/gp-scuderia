@@ -24,8 +24,11 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_mate
     ref = doc["x-reference"]; tol = ref["tolerance"]
     m = A.from_wire(doc)
     r = A.reference(doc, ref["Xnew"])
-    check(abs(r["log_likelihood"] - ref["log_likelihood"]) <= 1e-9
-          and np.abs(np.array(r["mean"]) - ref["mean"]).max() <= 1e-9,
+    # Laplace mode-finding is iterative, so BLAS differences move results by ~1e-8; use the golden's
+    # own tolerance there and stay tight for the closed-form cases.
+    lt, mt = (tol["log_likelihood"], tol["mean"]) if name.startswith("laplace") else (1e-9, 1e-9)
+    check(abs(r["log_likelihood"] - ref["log_likelihood"]) <= lt
+          and np.abs(np.array(r["mean"]) - ref["mean"]).max() <= mt,
           "%s reproduces its own x-reference" % name)
     back = A.to_wire(m)
     same = all(back[k] == doc[k] for k in
