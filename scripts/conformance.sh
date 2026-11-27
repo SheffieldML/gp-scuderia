@@ -34,11 +34,12 @@ echo "== Runner contract (stub framework) =="
 "$GPY_PY" "$ROOT/scripts/check_runner_contract.py" || status=1
 "$GPY_PY" "$ROOT/scripts/check_descriptors.py" || status=1
 "$GPY_PY" "$ROOT/scripts/check_sparse_properties.py" || status=1
+"$GPY_PY" "$ROOT/scripts/check_timing.py" || status=1
 echo "== Laplace goldens vs independent numpy implementation =="
 "$GPY_PY" "$ROOT/scripts/check_laplace_independent.py" 2>/dev/null || status=1
 "$GPY_PY" "$ROOT/scripts/check_unsupported_approximations.py" gpy 2>/dev/null || status=1
 BENCH=$(mktemp -d)
-"$GPY_PY" "$ROOT/scripts/benchmarks.py" generate --out "$BENCH" >/dev/null || status=1
+"$GPY_PY" "$ROOT/scripts/benchmarks.py" generate --out "$BENCH" --tier pr >/dev/null || status=1
 # Every framework with a pinned entry in frameworks/*.yaml (the same list CI uses).
 "$GPY_PY" "$ROOT/scripts/ci_matrix.py" --lines | while read fw kind env; do
   echo "== $fw =="

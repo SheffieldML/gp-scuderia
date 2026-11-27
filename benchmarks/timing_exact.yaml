@@ -1,0 +1,20 @@
+name: timing_exact
+kind: timing
+description: >
+  Wall-clock cost of an exact Gaussian process (build from the wire model, log likelihood, predict)
+  as n and the input dimension grow. Answers: how does each framework scale on the dense Cholesky path?
+  The accuracy tolerance is a sanity check only; timing never gates the build.
+seed: 11
+base:
+  n: 100
+  input_dim: 2
+  noise: 0.1
+  approximation: ftc
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+grid:
+  n: [100, 200, 400, 800, 1600, 3200, 6400]
+  input_dim: [2, 10]
+tiers:
+  pr: {n: [100, 400, 1600], input_dim: [2]}
+timing: {repeats: 5, warmup: 1}
+tolerance: {log_likelihood: 1.0, mean: 1.0e-2, var: 1.0e-2}

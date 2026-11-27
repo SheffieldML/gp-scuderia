@@ -8,10 +8,22 @@ individually: UnsupportedByFramework becomes {"refused": ...}, any other excepti
 {"error": ..., "trace": ...}. A hard crash of the process is handled by the caller, which
 retries the tasks one at a time.
 """
-import argparse, importlib, json, pathlib, platform, traceback
+import argparse, importlib, json, pathlib, platform, time, traceback
+
+import numpy as np
 
 from ._common import UnsupportedByFramework
 from .io import load
+
+
+def _time(func, doc, Xnew, spec, cold):
+    for _ in range(spec.get("warmup", 1)):
+        func(doc, Xnew)
+    ts = []
+    for _ in range(spec["repeats"]):
+        t0 = time.perf_counter(); func(doc, Xnew); ts.append(time.perf_counter() - t0)
+    q1, med, q3 = np.percentile(ts, [25, 50, 75])
+    return {"seconds_cold": cold, "seconds_median": float(med), "seconds_iqr": float(q3 - q1), "repeats": len(ts)}
 
 
 def run_tasks(func, tasks):
@@ -19,8 +31,14 @@ def run_tasks(func, tasks):
     for t in tasks:
         try:
             doc = load(t["golden"])
-            g = func(doc, doc["x-reference"]["Xnew"])
-            results[t["name"]] = {k: (v.tolist() if hasattr(v, "tolist") else v) for k, v in g.items()}
+            Xnew = doc["x-reference"]["Xnew"]
+            t0 = time.perf_counter()
+            g = func(doc, Xnew)          # the first call in this process for this task is the cold one
+            _cold = time.perf_counter() - t0
+            r = {k: (v.tolist() if hasattr(v, "tolist") else v) for k, v in g.items()}
+            if t.get("timing"):
+                r["timing"] = _time(func, doc, Xnew, t["timing"], cold=_cold)
+            results[t["name"]] = r
         except UnsupportedByFramework as e:
             results[t["name"]] = {"refused": str(e)}
         except Exception as e:

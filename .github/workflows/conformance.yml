@@ -23,8 +23,9 @@ jobs:
       - run: python scripts/record_check.py results/runner_contract.json runner-contract "Runner contract: schemas, crash isolation, per-task errors" -- python scripts/check_runner_contract.py
       - run: python scripts/record_check.py results/descriptors.json descriptors "Task descriptors match hand-computed values" -- python scripts/check_descriptors.py
       - run: python scripts/record_check.py results/sparse_checks.json sparse-checks "Sparse property checks can fail: broken DTCVar is caught" -- python scripts/check_sparse_properties.py
+      - run: python scripts/record_check.py results/timing_checks.json timing-checks "Timing machinery: grid and tier expansion, in-runner statistics, schemas" -- python scripts/check_timing.py
       - run: python scripts/compare.py gpy --mode pinned --json results/gpy-pinned.json
-      - run: python scripts/benchmarks.py generate --out bench-data
+      - run: python scripts/benchmarks.py generate --out bench-data --tier pr
       - run: python scripts/benchmarks.py run gpy --data bench-data --mode pinned --json results/bench-gpy-pinned.json
       - uses: actions/upload-artifact@v4
         with: {name: bench-data, path: bench-data}
@@ -71,6 +72,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with: {name: bench-data, path: bench-data}
       - run: python scripts/benchmarks.py run ${{ matrix.framework }} --data bench-data --mode ${{ matrix.mode }} --json results/bench-${{ matrix.framework }}-${{ matrix.mode }}.json
+      - name: Timing, pr tier (informational: hosted runners are noisy and timing never gates)
+        continue-on-error: true
+        run: |
+          python scripts/benchmarks.py time ${{ matrix.framework }} --data bench-data --tier pr --threads 1 --json results/time-${{ matrix.framework }}-${{ matrix.mode }}-1.json
+          python scripts/benchmarks.py time ${{ matrix.framework }} --data bench-data --tier pr --threads all --json results/time-${{ matrix.framework }}-${{ matrix.mode }}-all.json
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: "results-${{ matrix.framework }}-${{ matrix.mode }}", path: results}
