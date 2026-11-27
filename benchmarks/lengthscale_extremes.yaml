@@ -1,0 +1,18 @@
+name: lengthscale_extremes
+kind: accuracy
+description: >
+  Exact GP regression with an RBF kernel whose lengthscale is far from the data spacing:
+  very short (the kernel matrix tends to the identity) and very long (it tends to rank one).
+seed: 0
+base:
+  n: 40
+  input_dim: 1
+  noise: 0.1
+  approximation: ftc
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.0}
+cases:
+  - {id: ell_0p02, kernel: {lengthscale: 0.02}}
+  - {id: ell_0p3,  kernel: {lengthscale: 0.3}}
+  - {id: ell_30,   kernel: {lengthscale: 30.0}}
+  - {id: ell_300,  kernel: {lengthscale: 300.0}}
+tolerance: {log_likelihood: 1.0e-4, mean: 1.0e-4, var: 1.0e-4}
