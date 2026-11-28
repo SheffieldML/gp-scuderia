@@ -3,7 +3,7 @@ author: "Neil Lawrence"
 created: "2026-11-28"
 id: "000A"
 last_updated: "2026-11-28"
-status: "Proposed"
+status: "Accepted"
 compressed: false
 related_requirements: []
 related_cips: ["0003", "0004", "0005", "0007"]
@@ -20,7 +20,7 @@ title: "Julia frameworks: AbstractGPs and KernelFunctions, then GaussianProcesse
 ## Status
 
 - [x] Proposed - Initial idea documented
-- [ ] Accepted
+- [x] Accepted
 - [ ] In Progress
 - [ ] Implemented
 - [ ] Closed
