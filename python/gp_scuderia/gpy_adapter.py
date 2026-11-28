@@ -7,6 +7,7 @@ import inspect
 import numpy as np
 import GPy
 from ._common import UnsupportedByFramework
+from .linear_basis import polynomial_basis, reference as _lb_reference
 
 _KERN = {
     "kern.rbf": GPy.kern.RBF,
@@ -60,6 +61,29 @@ class _FixedStandardize(GPy.util.normalizer.Standardize):
         pass
 
 
+class _BasisMean(GPy.core.Mapping):
+    """Prior mean F(x) beta with fixed beta (mean.linear_basis, beta.mode fixed).
+
+    beta is not a GPy parameter: the wire's fixed mode means it is never estimated.
+    """
+
+    def __init__(self, input_dim, powers, beta):
+        super().__init__(input_dim=input_dim, output_dim=1, name="basis_mean")
+        self.powers = [list(map(int, r)) for r in powers]
+        self.beta = np.asarray(beta, float).ravel()
+        if len(self.beta) != len(self.powers):
+            raise ValueError("beta has %d entries for %d basis columns" % (len(self.beta), len(self.powers)))
+
+    def f(self, X):
+        return (polynomial_basis(X, self.powers) @ self.beta)[:, None]
+
+    def update_gradients(self, dL_dF, X):
+        pass
+
+    def gradients_X(self, dL_dF, X):
+        raise NotImplementedError("gradients with respect to X are not needed for a fixed mean")
+
+
 def _target_transform(doc):
     """(normalizer, mean_function) kwargs for a GPy model from the wire fields."""
     if "mean" in doc and "normalizer" in doc:
@@ -73,7 +97,14 @@ def _target_transform(doc):
             norm = _FixedStandardize(n["mean"], n["std"])
         else:
             raise NotImplementedError(n["type"])
-    if "mean" in doc:
+    if "mean" in doc and doc["mean"]["type"] == "mean.linear_basis":
+        node = doc["mean"]
+        if node["beta"]["mode"] != "fixed":
+            raise UnsupportedByFramework(
+                "GPy has no inference for the basis coefficients (beta.mode %s); reference() computes "
+                "them from the model's kernel and noise" % node["beta"]["mode"])
+        mf = _BasisMean(doc["input_dim"], node["basis"]["powers"], node["beta"]["value"])
+    elif "mean" in doc:
         if doc["mean"]["type"] != "mean.constant":
             raise NotImplementedError(doc["mean"]["type"])
         mf = GPy.mappings.Constant(doc["input_dim"], 1, value=doc["mean"]["value"])
@@ -240,7 +271,7 @@ def to_wire(m):
         raise WireExportError("mean and normalizer together are not in schema 0.1")
     if norm and not isinstance(norm, GPy.util.normalizer.Standardize):
         raise WireExportError("unsupported normalizer %s" % type(norm).__name__)
-    if mf is not None and not isinstance(mf, GPy.mappings.Constant):
+    if mf is not None and not isinstance(mf, (GPy.mappings.Constant, _BasisMean)):
         raise WireExportError("unsupported mean function %s" % type(mf).__name__)
     if not mixed and not isinstance(m.likelihood, GPy.likelihoods.Gaussian):
         raise WireExportError("non-Gaussian likelihood")
@@ -275,15 +306,22 @@ def to_wire(m):
         doc["normalizer"] = {"type": "normalizer.standardize",
                              "mean": float(norm.mean.ravel()[0]), "std": float(norm.std.ravel()[0])}
     if mf is not None:
-        doc["mean"] = {"type": "mean.constant", "value": float(np.asarray(mf.C.values).ravel()[0])}
+        if isinstance(mf, _BasisMean):
+            doc["mean"] = {"type": "mean.linear_basis",
+                           "basis": {"type": "basis.polynomial", "powers": [list(r) for r in mf.powers]},
+                           "beta": {"mode": "fixed", "value": [float(b) for b in mf.beta]}}
+        else:
+            doc["mean"] = {"type": "mean.constant", "value": float(np.asarray(mf.C.values).ravel()[0])}
     doc["data"] = {"X": np.asarray(m.X).tolist(), "Y": Y.tolist()}
     return doc
 
 
 def reference(doc, Xnew):
     """Compute log-likelihood and predictive mean/variance for doc at Xnew."""
-    m = from_wire(doc)
     Xnew = np.array(Xnew, float)
+    if doc.get("mean", {}).get("type") == "mean.linear_basis" and doc["mean"]["beta"]["mode"] != "fixed":
+        return _linear_basis_reference(doc, Xnew)
+    m = from_wire(doc)
     if doc["likelihood"]["type"] in _NONGAUSS:
         return _laplace_reference(doc, m, Xnew)
     meta = None
@@ -302,6 +340,30 @@ def reference(doc, Xnew):
         "mean": mean.ravel().tolist(),
         "var": var.ravel().tolist(),
     }
+
+
+def _linear_basis_reference(doc, Xnew):
+    """Estimated-beta modes (CIP-0009): GPy supplies K, K* and the noise; beta is handled here.
+
+    GPy has no profiled, flat-prior or Gaussian-prior inference for a mean's coefficients,
+    so the generalised-least-squares algebra of gp_scuderia.linear_basis runs on matrices
+    taken from the GPy model. The kernel and noise code under test is GPy's.
+    """
+    if doc.get("approximation", "ftc") != "ftc" or doc["likelihood"]["type"] != "likelihoods.gaussian":
+        raise UnsupportedByFramework("mean.linear_basis is exact Gaussian regression only in 0.1")
+    node = doc["mean"]
+    zero_mean = {k: v for k, v in doc.items() if k != "mean"}
+    m = from_wire(zero_mean)
+    X = np.asarray(doc["data"]["X"], float)
+    Y = np.asarray(doc["data"]["Y"], float).ravel()
+    noise = float(m.Gaussian_noise.variance)
+    powers, beta = node["basis"]["powers"], node["beta"]
+    r = _lb_reference(m.kern.K(X), noise, Y, polynomial_basis(X, powers), beta["mode"],
+                      polynomial_basis(Xnew, powers), m.kern.K(X, Xnew), m.kern.Kdiag(Xnew),
+                      prior_mean=beta.get("prior_mean"), prior_cov=beta.get("prior_cov"))
+    return {"log_likelihood": float(r["log_likelihood"]), "Xnew": Xnew.tolist(),
+            "mean": np.asarray(r["mean"]).ravel().tolist(),
+            "var": (np.asarray(r["var"]).ravel() + noise).tolist()}
 
 
 def _laplace_reference(doc, m, Xnew):

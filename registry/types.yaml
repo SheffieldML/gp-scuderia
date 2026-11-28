@@ -295,13 +295,14 @@ types:
       fixed, profiled, flat_prior, gaussian_prior; each has its own log likelihood
       and predictive variance (CIP-0009). Exact GP only in 0.1. Not interchangeable
       with mean.constant except for the intercept-only fixed case.
-    gpy: {status: not-yet-checked}
+    gpy: {class: gp_scuderia.gpy_adapter._BasisMean, notes: 'fixed beta is native; estimated modes use GPy K, K* and noise with the GLS algebra of gp_scuderia.linear_basis. GPy adds 1e-8 to the noise, so log p differs from the exact reference by ~1e-7'}
     gpc: {status: not-yet-checked}
     gpmat: {status: not-yet-checked}
     gpytorch: {status: not-yet-checked}
     gpflow: {status: not-yet-checked}
     gpjax: {status: not-yet-checked}
     verified: false
+    verified_in: [gpy]   # goldens ftc_linear_*
 
   - portable: normalizer.center
     notes: >

@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_linear-basis-adapters"
 title: "mean.linear_basis: framework adapters"
-status: "Proposed"
+status: "In Progress"
 priority: "Medium"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -23,7 +23,7 @@ GPy first (`fixed` natively; estimated modes through GLS computed from the model
 
 ## Acceptance Criteria
 
-- [ ] GPy matches the reference in every mode
+- [x] GPy matches the reference in every mode
 - [ ] GPc and GPmat match where realisable and refuse elsewhere
 - [ ] No adapter maps a mode onto a constant bias unless the basis is the intercept alone
 - [ ] `frameworks/*.yaml` declarations updated only for tested modes
@@ -37,3 +37,7 @@ GPy first (`fixed` natively; estimated modes through GLS computed from the model
 ### 2026-11-28
 
 Task created with CIP-0009 Accepted.
+
+### 2026-11-28
+
+In Progress. GPy done: `fixed` through a fixed-weight `_BasisMean` mapping (round trips through `to_wire`); estimated modes through GPy's K, K* and noise with the GLS algebra of the NumPy reference, and `from_wire` refuses them because no GPy model realises them. GPy adds 1e-8 to the noise, so its log likelihood sits about 1e-7 from the exact reference; the golden tolerance for log likelihood is 1e-6. GPc, GPmat and R remain.

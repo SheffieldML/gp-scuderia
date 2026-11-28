@@ -44,4 +44,4 @@ x-reference:
   mean: [1.707834612560228, 1.4754600345092341, 1.0209368950722348]
   var: [0.5686816187662074, 0.17066504619311554, 0.41704024842776777]
   oracle: numpy reference gp_scuderia.linear_basis (CIP-0009)
-  tolerance: {log_likelihood: 1.0e-07, mean: 1.0e-07, var: 1.0e-07}
+  tolerance: {log_likelihood: 1.0e-06, mean: 1.0e-07, var: 1.0e-07}

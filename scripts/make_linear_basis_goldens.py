@@ -52,7 +52,7 @@ for name, doc in GOLDENS.items():
     ref = lb.reference_from_doc(doc, XNEW[doc["input_dim"]])
     ref.pop("beta")
     ref["oracle"] = "numpy reference gp_scuderia.linear_basis (CIP-0009)"
-    ref["tolerance"] = {"log_likelihood": 1e-7, "mean": 1e-7, "var": 1e-7}
+    ref["tolerance"] = {"log_likelihood": 1e-6, "mean": 1e-7, "var": 1e-7}  # GPy adds 1e-8 to the noise, shifting log p by ~1e-7
     doc["x-reference"] = ref
     p = root / "examples" / (name + ".yaml")
     dump(doc, p)

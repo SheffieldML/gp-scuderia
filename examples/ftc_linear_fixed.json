@@ -132,7 +132,7 @@
     ],
     "oracle": "numpy reference gp_scuderia.linear_basis (CIP-0009)",
     "tolerance": {
-      "log_likelihood": 1e-07,
+      "log_likelihood": 1e-06,
       "mean": 1e-07,
       "var": 1e-07
     }

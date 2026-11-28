@@ -9,6 +9,7 @@ import GPy
 root = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "python"))
 from gp_scuderia import load, gpy_adapter as A
+from gp_scuderia._common import UnsupportedByFramework
 
 bad = 0
 validator = Draft202012Validator(json.loads((root / 'schemas/model.schema.json').read_text()))
@@ -17,16 +18,22 @@ def check(cond, msg):
     print(("ok   " if cond else "FAIL ") + msg)
     bad += (not cond)
 
+def raises(f, exc, label):
+    try:
+        f(); check(False, "raises " + label)
+    except exc as e:
+        check(True, "raises %s (%s)" % (label, e))
+
 for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52",
              "ftc_standardize", "dtcvar_mean_constant", "ftc_icm", "ftc_lcm",
-             "laplace_bernoulli", "laplace_poisson"]:
+             "laplace_bernoulli", "laplace_poisson", "ftc_linear_fixed"]:
     doc = load(root / "examples" / (name + ".yaml"))
     ref = doc["x-reference"]; tol = ref["tolerance"]
     m = A.from_wire(doc)
     r = A.reference(doc, ref["Xnew"])
     # Laplace mode-finding is iterative, so BLAS differences move results by ~1e-8; use the golden's
     # own tolerance there and stay tight for the closed-form cases.
-    lt, mt = (tol["log_likelihood"], tol["mean"]) if name.startswith("laplace") else (1e-9, 1e-9)
+    lt, mt = (tol["log_likelihood"], tol["mean"]) if name.startswith(("laplace", "ftc_linear")) else (1e-9, 1e-9)
     check(abs(r["log_likelihood"] - ref["log_likelihood"]) <= lt
           and np.abs(np.array(r["mean"]) - ref["mean"]).max() <= mt,
           "%s reproduces its own x-reference" % name)
@@ -40,6 +47,17 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_mate
     m2 = A.from_wire(back)
     check(abs(m2.log_likelihood() - m.log_likelihood()) < 1e-12, "%s rebuilt model has the same log likelihood" % name)
 
+# Estimated-beta modes (CIP-0009): no GPy model realises them, so only reference() is exercised.
+for name in ["ftc_linear_profiled", "ftc_linear_flat_prior", "ftc_linear_gaussian_prior", "ftc_linear_quadratic_profiled"]:
+    doc = load(root / "examples" / (name + ".yaml"))
+    ref = doc["x-reference"]; tol = ref["tolerance"]
+    r = A.reference(doc, ref["Xnew"])
+    check(abs(r["log_likelihood"] - ref["log_likelihood"]) <= tol["log_likelihood"]
+          and np.abs(np.array(r["mean"]) - ref["mean"]).max() <= tol["mean"]
+          and np.abs(np.array(r["var"]) - ref["var"]).max() <= tol["var"],
+          "%s reproduces its x-reference from GPy's K and noise" % name)
+    raises(lambda: A.from_wire(doc), UnsupportedByFramework, "%s: no GPy model for estimated beta" % name)
+
 X = np.random.RandomState(0).randn(6, 1); Y = np.sin(X)
 def refuses(model, label):
     try:
@@ -52,11 +70,6 @@ refuses(GPy.models.GPRegression(X, Y, GPy.kern.RBF(1), normalizer=True,
 refuses(GPy.models.GPRegression(X, Y, GPy.kern.RBF(1), mean_function=GPy.mappings.Linear(1, 1)), "non-constant mean function")
 refuses(GPy.models.GPRegression(X, np.hstack([Y, Y]), GPy.kern.RBF(1)), "multi-output")
 refuses(GPy.models.GPClassification(X, (Y > 0).astype(float), GPy.kern.RBF(1)), "non-Gaussian model with EP inference")
-def raises(f, exc, label):
-    try:
-        f(); check(False, "raises " + label)
-    except exc as e:
-        check(True, "raises %s (%s)" % (label, e))
 _b = load(root / "examples" / "laplace_bernoulli.yaml")
 _p = load(root / "examples" / "laplace_poisson.yaml")
 def _with(d, **kw):
