@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_juliagps-roundtrip-fixture"
 title: "Round-trip fixture between GPy and juliagps"
-status: "Ready"
+status: "Completed"
 priority: "Medium"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -23,9 +23,9 @@ Add a fixture for `models.gp_regression` with an RBF kernel and a Gaussian likel
 
 ## Acceptance Criteria
 
-- [ ] GPy to juliagps direction passes
-- [ ] juliagps to GPy direction passes
-- [ ] Provisional marker on `juliagps` removed, or a recorded reason for keeping it
+- [x] GPy to juliagps direction passes
+- [x] juliagps to GPy direction passes
+- [x] Provisional marker on `juliagps` removed, or a recorded reason for keeping it (no marker was ever written into `frameworks/juliagps.yaml`, so there is nothing to remove)
 
 ## Related
 
@@ -35,3 +35,6 @@ Add a fixture for `models.gp_regression` with an RBF kernel and a Gaussian likel
 
 ### 2026-11-28
 Created from the accepted CIP-000A.
+
+### 2026-11-28
+Completed. `scripts/roundtrip_juliagps.py` (run with the GPy interpreter) covers both directions for an RBF Gaussian regression; `julia/juliagps/exportModel.jl` is the Julia-side writer. Log likelihood, mean and variance agree to within 1e-6 (observed differences about 1e-7). It is not in CI because it needs GPy and Julia together; run it by hand.
