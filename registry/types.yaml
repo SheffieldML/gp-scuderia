@@ -301,8 +301,9 @@ types:
     gpytorch: {status: not-yet-checked}
     gpflow: {status: not-yet-checked}
     gpjax: {status: not-yet-checked}
+    dicekriging: {adapter: r/dicekriging/runDicekriging.R, notes: "km() with known covariance parameters and noise.var. profiled is the GLS trend (logLikFun's concentrated likelihood, from km's own T and z); fixed uses coef.trend with SK prediction; flat_prior subtracts log|M'M|/2 from the profiled value. Wire var = sd^2 + noise.var. gaussian_prior refuses."}
     verified: false
-    verified_in: [gpy]   # goldens ftc_linear_*
+    verified_in: [gpy, dicekriging]   # goldens ftc_linear_*
 
   - portable: normalizer.center
     notes: >
