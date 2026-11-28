@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_linear-basis-reference-goldens"
 title: "mean.linear_basis: NumPy reference, property checks and goldens"
-status: "Ready"
+status: "In Progress"
 priority: "High"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -23,10 +23,10 @@ A NumPy reference for all four `beta.mode` values, independent of any framework.
 
 ## Acceptance Criteria
 
-- [ ] Reference gives log likelihood and predictive moments for each mode
-- [ ] `gaussian_prior` with large `prior_cov` approaches `flat_prior` up to the dropped term
-- [ ] `profiled` and `flat_prior` predict identically and differ in log likelihood by `-0.5 log|A|`
-- [ ] A deliberately wrong reference fails the checks
+- [x] Reference gives log likelihood and predictive moments for each mode
+- [x] `gaussian_prior` with large `prior_cov` approaches `flat_prior` up to the dropped term
+- [x] `profiled` and `flat_prior` predict identically and differ in log likelihood by `-0.5 log|A|`
+- [x] A deliberately wrong reference fails the checks
 - [ ] Goldens added, with `tests/expected_refusals.yaml` updated
 
 ## Related
@@ -38,3 +38,7 @@ A NumPy reference for all four `beta.mode` values, independent of any framework.
 ### 2026-11-28
 
 Task created with CIP-0009 Accepted.
+
+### 2026-11-28
+
+In Progress. `python/gp_scuderia/linear_basis.py` and `scripts/check_linear_basis.py` done: ten property checks, each against a different computation than the reference, and a broken reference is caught. Goldens and `expected_refusals.yaml` remain.

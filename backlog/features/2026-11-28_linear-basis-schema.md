@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_linear-basis-schema"
 title: "mean.linear_basis: schema, overview and registry"
-status: "In Progress"
+status: "Completed"
 priority: "High"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -23,11 +23,11 @@ Add `mean.linear_basis` with `basis.polynomial` and the four `beta.mode` values 
 
 ## Acceptance Criteria
 
-- [ ] Schema accepts the four modes and rejects missing `value`, `prior_mean` or `prior_cov` where required
-- [ ] Schema rejects the type with a sparse approximation
-- [ ] Invalid fixtures cover each rejection
-- [ ] `scripts/validate.py` passes
-- [ ] Overview and registry updated
+- [x] Schema accepts the four modes and rejects missing `value`, `prior_mean` or `prior_cov` where required
+- [x] Schema rejects the type with a sparse approximation
+- [x] Invalid fixtures cover each rejection
+- [x] `scripts/validate.py` passes
+- [x] Overview and registry updated
 
 ## Related
 
@@ -38,3 +38,7 @@ Add `mean.linear_basis` with `basis.polynomial` and the four `beta.mode` values 
 ### 2026-11-28
 
 Task created with CIP-0009 Accepted.
+
+### 2026-11-28
+
+Completed. Schema, overview, registry and six invalid fixtures; each fixture differs from a valid counterpart only by its one defect, and all four modes validate. `validate.py` and `check_framework_files.py` pass.
