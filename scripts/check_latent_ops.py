@@ -71,7 +71,9 @@ sparse = {"schema_version": "0.1", "type": "models.gp_regression", "approximatio
           "inducing_inputs": doc["inducing_inputs"], "kernel": doc["kernel"], "likelihood": doc["likelihood"],
           "data": {"X": mu.tolist(), "Y": doc["data"]["Y"]}}
 b0 = A.bound(d0)["bound_without_kl"]
+A.KUU_JITTER = 1e-6   # the latent path uses 1e-6 on every GPy release
 ll = A.reference(sparse, mu.tolist())["log_likelihood"]
+A.KUU_JITTER = None
 check("bound_without_kl at S -> 0 equals dtcvar log likelihood (%.2e)" % abs(b0 - ll), abs(b0 - ll) < 1e-5)
 check("kl is reported separately", abs(b["kl"] - 0.5 * np.sum(mu ** 2 + S - np.log(S) - 1)) < 1e-12)
 

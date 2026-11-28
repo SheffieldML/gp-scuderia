@@ -309,7 +309,11 @@ def latent_reference(bench, doc):
                   "output_dim": len(doc["data"]["Y"][0]), "approximation": "dtcvar",
                   "inducing_inputs": doc["inducing_inputs"], "kernel": doc["kernel"], "likelihood": doc["likelihood"],
                   "data": {"X": mu, "Y": doc["data"]["Y"]}}
-        ll = gpy_adapter.reference(sparse, [[0.0] * doc["latent"]["dim"]])["log_likelihood"]
+        gpy_adapter.KUU_JITTER = 1e-6   # the latent path uses 1e-6 on every GPy release
+        try:
+            ll = gpy_adapter.reference(sparse, [[0.0] * doc["latent"]["dim"]])["log_likelihood"]
+        finally:
+            gpy_adapter.KUU_JITTER = None
         own = gpy_adapter.bound(doc)["bound_without_kl"]
         if abs(own - ll) > 1e-6:
             raise SystemExit("GPy's latent bound %.10g differs from its sparse GP %.10g in the collapse limit" % (own, ll))

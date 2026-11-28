@@ -119,8 +119,15 @@ def _exact_inference():
     return _LIF.ExactGaussianInference(jitter=0.0) if "exact_jitter" in FEATURES else _LIF.ExactGaussianInference()
 
 
+KUU_JITTER = None   # set to force a Kuu jitter on every GPy release, as the GP-LVM comparison needs
+
+
 def _vardtc_inference():
     """VarDTC with the 1e-6 Kuu jitter the other frameworks use, where GPy allows it."""
+    if KUU_JITTER is not None:
+        v = _LIF.VarDTC()
+        v.const_jitter = KUU_JITTER
+        return v
     return _LIF.VarDTC(const_jitter=1e-6) if "kuu_jitter" in FEATURES else _LIF.VarDTC()
 
 
