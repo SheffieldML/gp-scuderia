@@ -289,6 +289,20 @@ types:
     verified: false
     verified_in: [gpy, gpc, gpmat]   # golden dtcvar_mean_constant
 
+  - portable: mean.linear_basis
+    notes: >
+      Prior mean F(x) beta with a basis.polynomial basis. beta.mode is one of
+      fixed, profiled, flat_prior, gaussian_prior; each has its own log likelihood
+      and predictive variance (CIP-0009). Exact GP only in 0.1. Not interchangeable
+      with mean.constant except for the intercept-only fixed case.
+    gpy: {status: not-yet-checked}
+    gpc: {status: not-yet-checked}
+    gpmat: {status: not-yet-checked}
+    gpytorch: {status: not-yet-checked}
+    gpflow: {status: not-yet-checked}
+    gpjax: {status: not-yet-checked}
+    verified: false
+
   - portable: normalizer.center
     notes: >
       Fitted to y - mean. GPy has no centre-only normalizer: the adapter uses
