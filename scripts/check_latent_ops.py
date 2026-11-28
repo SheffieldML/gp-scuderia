@@ -111,4 +111,15 @@ dv, _ = B.gradient_deviation(wrong, g, gtol)
 check("gradient comparison flags dL/dlog S in place of dL/dS", dv > 1)
 r = run.run_tasks(A.reference, [{"name": "g", "golden": str(path), "operations": ["gradient"]}], A.gradient)["g"]
 check("runner returns the latent gradient", "gradient" in r and "latent.mean" in r["gradient"])
+
+# a framework that declares only `gradient` (sparse regression) must not be sent latent documents
+sys.path.insert(0, str(root / "scripts"))
+import benchmarks as B
+ok_all = ("latent_gradient", "psi", "latent_bound", "latent_timing")
+gated = (all(B.latent_gate({"operations": ["gradient"]}, k) for k in ok_all)
+         and not any(B.latent_gate({"operations": ["gradient", "bound", "psi"]}, k) for k in ok_all)
+         and B.latent_gate({"operations": ["bound"]}, "psi") == ["the framework file declares no psi operation"])
+check("latent benchmarks are gated on `bound` plus their own operation", gated)
+
 sys.exit(1 if bad else 0)
+

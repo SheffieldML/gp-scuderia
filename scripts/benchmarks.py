@@ -31,6 +31,18 @@ def deep_merge(a, b):
 _AXIS_ID = {"n": "n%d", "input_dim": "d%d", "inducing": "M%d"}
 
 
+def latent_gate(framework, kind):
+    """Reasons a framework cannot run a latent-variable benchmark of this kind (empty: it can).
+
+    The collapsed bound is the least a GP-LVM framework must provide, so every latent kind needs `bound` as well as
+    its own operation. Without this, a framework that declares only `gradient` (for sparse regression) would be sent
+    a Bayesian GP-LVM document it cannot read.
+    """
+    ops = framework.get("operations", [])
+    need = ["bound"] if LATENT_KINDS[kind] == "bound" else ["bound", LATENT_KINDS[kind]]
+    return ["the framework file declares no %s operation" % o for o in need if o not in ops]
+
+
 def expand_grid(b):
     """Expand `grid` (axis: values) into cases. `tiers` lists, per tier, the axis values it keeps;
     the `scheduled` tier is always everything. Each case records the tiers it belongs to."""
@@ -392,8 +404,8 @@ def timing(fw, data, tier, threads, json_out):
     def why_not(n):
         why = F.missing(framework["_caps"], docs[n])
         kind = docs[n]["x-benchmark-kind"]
-        if not why and kind in LATENT_KINDS and LATENT_KINDS[kind] not in framework.get("operations", []):
-            why = ["the framework file declares no %s operation" % LATENT_KINDS[kind]]
+        if not why and kind in LATENT_KINDS:
+            why = latent_gate(framework, kind)
         return why
     runnable = [n for n in names if not why_not(n)]
     extra, t0 = {}, time.time()
@@ -458,8 +470,8 @@ def run(fw, data, mode, json_out):
         if not why and gradient_kind(n) and "gradient" not in framework.get("operations", []):
             why = ["the framework file declares no gradient operation"]
         kind = docs[n].get("x-benchmark-kind")
-        if not why and kind in LATENT_KINDS and LATENT_KINDS[kind] not in framework.get("operations", []):
-            why = ["the framework file declares no %s operation" % LATENT_KINDS[kind]]
+        if not why and kind in LATENT_KINDS:
+            why = latent_gate(framework, kind)
         return why
     runnable = [n for n in names if not skip_reason(n)]
     extra = {}
