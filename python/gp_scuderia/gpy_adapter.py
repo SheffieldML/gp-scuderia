@@ -3,6 +3,7 @@
 GPy is the independent oracle for the numerical fixtures: wire parameters are
 GPy-natural (positive, untransformed), so this adapter does no unit conversion.
 """
+import inspect
 import numpy as np
 import GPy
 from ._common import UnsupportedByFramework
@@ -97,6 +98,32 @@ def _laplace_from_wire(doc, kern, X, Y):
                        inference_method=GPy.inference.latent_function_inference.Laplace())
 
 
+_LIF = GPy.inference.latent_function_inference
+
+
+def _accepts(cls, name):
+    return name in inspect.signature(cls.__init__).parameters
+
+
+# What the installed GPy can be told, so the oracle follows the document rather than GPy's historical
+# numerical guards. Recorded in every golden (x-reference.oracle_features); benchmarks use it to decide
+# which `known` mismatches still apply. Older GPy releases lack these options and keep the guards.
+FEATURES = sorted(f for f, ok in {
+    "exact_jitter": _accepts(_LIF.ExactGaussianInference, "jitter"),
+    "kuu_jitter": _accepts(_LIF.VarDTC, "const_jitter"),
+}.items() if ok)
+
+
+def _exact_inference():
+    """Exact Gaussian inference with no jitter on the noise variance, where GPy allows it."""
+    return _LIF.ExactGaussianInference(jitter=0.0) if "exact_jitter" in FEATURES else _LIF.ExactGaussianInference()
+
+
+def _vardtc_inference():
+    """VarDTC with the 1e-6 Kuu jitter the other frameworks use, where GPy allows it."""
+    return _LIF.VarDTC(const_jitter=1e-6) if "kuu_jitter" in FEATURES else _LIF.VarDTC()
+
+
 def from_wire(doc):
     d = doc["input_dim"]
     norm, mf = _target_transform(doc)
@@ -114,13 +141,16 @@ def from_wire(doc):
         idx = X[:, lik["output_index_column"]].astype(int)[:, None]
         mixed = GPy.likelihoods.MixedNoise([GPy.likelihoods.Gaussian(variance=v) for v in noise])
         return GPy.core.GP(X, Y, kern, mixed, Y_metadata={"output_index": idx},
-                           normalizer=norm, mean_function=mf)
+                           normalizer=norm, mean_function=mf, inference_method=_exact_inference())
     if approx == "ftc":
-        return GPy.models.GPRegression(X, Y, kern, noise_var=noise, normalizer=norm,
-                                       mean_function=mf)
+        m = GPy.models.GPRegression(X, Y, kern, noise_var=noise, normalizer=norm, mean_function=mf)
+        m.inference_method = _exact_inference()
+        m.parameters_changed()
+        return m
     Z = np.array(doc["inducing_inputs"], float)
     if approx == "dtcvar":
         m = GPy.models.SparseGPRegression(X, Y, kern, Z=Z, normalizer=norm, mean_function=mf)
+        m.inference_method = _vardtc_inference()
     elif approx == "fitc":
         m = GPy.models.SparseGPRegression(X, Y, kern, Z=Z, normalizer=norm, mean_function=mf)
         m.inference_method = GPy.inference.latent_function_inference.FITC()
