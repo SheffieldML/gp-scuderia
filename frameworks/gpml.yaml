@@ -16,8 +16,8 @@ capabilities:
   approximations: [ftc, fitc]          # no DTCVAR bound in GPML
   kernels:
     - rbf
-    - matern32: {options: []}          # covMaterniso has no ARD
-    - matern52: {options: []}
+    - matern32: {options: [multi_input]}        # covMaterniso has no ARD
+    - matern52: {options: [multi_input]}
     - white
     - bias
     - add

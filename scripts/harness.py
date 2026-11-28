@@ -41,8 +41,9 @@ def launch(fw, runner, tasks, extra, threads=None):
         ops = [o for t in batch for o in t.get("operations", [])]
         ver = 3 if {"bound", "psi"} & set(ops) else 2 if any("operations" in t for t in batch) else 1
         task.write_text(json.dumps({"schema": "gp-scuderia-task/%d" % ver, "tasks": batch}))
-        if runner["kind"] == "octave":
-            cmd = ["octave-cli", "--no-gui", str(root / runner["script"])]
+        if runner["kind"] in ("octave", "r"):
+            tool = ["octave-cli", "--no-gui"] if runner["kind"] == "octave" else ["Rscript", "--vanilla"]
+            cmd = tool + [str(root / runner["script"])]
             env.update(GPSCUDERIA_TASK=str(task), GPSCUDERIA_OUT=str(out))
         else:
             cmd = [sys.executable, "-m", "gp_scuderia.run", "--entry", runner["entry"],
@@ -59,7 +60,7 @@ def launch(fw, runner, tasks, extra, threads=None):
             r, why = once([t], t["name"])
             results[t["name"]] = r["results"][t["name"]] if r else {"error": why}
         return results
-    for k in ("octave", fw):
+    for k in ("octave", "r", fw):
         if k in raw:
             extra[k] = raw[k]
     return raw["results"]

@@ -32,7 +32,7 @@
           },
           "golden": {
             "type": "string",
-            "description": "Path to the golden (JSON twin for Octave runners)"
+            "description": "Path to the golden (JSON twin for Octave and R runners)"
           },
           "timing": {
             "type": "object",

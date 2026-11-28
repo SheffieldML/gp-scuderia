@@ -7,7 +7,8 @@
 computed by the oracle. `run` sends the cases a framework can run (capabilities from
 frameworks/<name>.yaml, features derived from the model as in compare.py) through the runner
 contract and compares with the references. A case outside the framework's capabilities is
-`skipped`. A benchmark may list `known: {framework: {case: reason}}`; a mismatch recorded there is
+`skipped`. A benchmark may list `known: {framework: {case: reason}}` (a reason may instead be `{why: ..., fixed_by: feature}`,
+which stops applying once the oracle GPy reports that feature in x-reference.oracle_features); a mismatch recorded there is
 `known` and does not fail the build, but a known case that starts to match is reported as an
 unexpected pass so the entry gets removed.
 """
@@ -369,7 +370,7 @@ def generate(out, tier=None):
             if "tiers" in case:
                 doc["x-tiers"] = case["tiers"]
             ref = gpy_adapter.reference(doc, Xnew)
-            ref.update(oracle="GPy", tolerance=bench["tolerance"])
+            ref.update(oracle="GPy", oracle_features=gpy_adapter.FEATURES, tolerance=bench["tolerance"])
             if bench.get("kind") == "gradient":
                 ref["gradient"], ref["gradient_fd_maxrel"] = oracle_gradient(doc, Xnew)
             doc["x-reference"] = ref
@@ -454,13 +455,20 @@ def run(fw, data, mode, json_out):
     framework = F.load_frameworks()[fw]
     rn = framework["runners"][0]
     data = pathlib.Path(data).resolve()
+    names = sorted(p.stem for p in data.glob("*.yaml"))
+    docs = {n: load(data / (n + ".yaml")) for n in names}
+    oracle_features = set()      # what the GPy that wrote these goldens could be told (same for every golden)
+    for d in docs.values():
+        oracle_features |= set(d.get("x-reference", {}).get("oracle_features", []))
     known = {}
     for b in benchmarks():
         for f, cases in (b.get("known") or {}).items():
             for cid, why in cases.items():
+                if isinstance(why, dict):        # {why: ..., fixed_by: feature}: moot once the oracle has the feature
+                    if why.get("fixed_by") in oracle_features:
+                        continue
+                    why = why["why"]
                 known[(f, "%s__%s" % (b["name"], cid))] = why
-    names = sorted(p.stem for p in data.glob("*.yaml"))
-    docs = {n: load(data / (n + ".yaml")) for n in names}
     names = [n for n in names if docs[n].get("x-benchmark-kind") not in ("timing", "latent_timing")]
     def gradient_kind(n):
         return docs[n].get("x-benchmark-kind") == "gradient"

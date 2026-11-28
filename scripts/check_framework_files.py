@@ -44,7 +44,7 @@ for text, what in (("kernels: [nosuchkernel]", "unknown kernel"), ("kernels: [{r
         except ValueError:
             pass
 
-# every referenced install file exists; Octave runners have a fetch source
+# every referenced install file exists; Octave runners have a fetch source; R runners have a script and install lists
 for name, fw in fws.items():
     for rn in fw["runners"]:
         for mode, f in rn.get("install", {}).items():
@@ -54,6 +54,11 @@ for name, fw in fws.items():
             print("FAIL %s: octave runner without fetch" % name); bad += 1
         if rn["kind"] == "python" and "install" not in rn and "job" not in fw.get("ci", {}):
             print("FAIL %s: python runner without install files and no bespoke ci job" % name); bad += 1
+        if rn["kind"] == "r":
+            if not (root / rn.get("script", "")).is_file():
+                print("FAIL %s: r runner script %r missing" % (name, rn.get("script"))); bad += 1
+            if "install" not in rn:
+                print("FAIL %s: r runner without install lists" % name); bad += 1
 
 print("framework files: %d frameworks, %d goldens, %s" % (len(fws), len(goldens), "FAIL" if bad else "ok"))
 sys.exit(1 if bad else 0)

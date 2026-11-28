@@ -1,0 +1,6 @@
+# R packages for the R runners (CIP-0007), one "package version" per line.
+# R/install.R installs exactly these versions. Update them when the goldens are re-verified.
+jsonlite 2.0.0
+DiceKriging 1.6.1
+kergp 0.5.8
+GauPro 0.2.17

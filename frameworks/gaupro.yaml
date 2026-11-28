@@ -1,0 +1,21 @@
+name: gaupro
+runners:
+  - id: r
+    kind: r
+    script: R/gaupro/runGaupro.R
+    install: {pinned: ci/pinned-r.txt, latest: ci/latest-r.txt}
+    versions_from_run: true
+ci:
+  modes: [pinned, latest]
+  unsupported_check: true
+capabilities:
+  approximations: [ftc]
+  kernels:                       # GauPro composes kernels with + and *; no constant kernel, White unusable
+    - {rbf: {options: [multi_input]}}
+    - {matern32: {options: [multi_input]}}
+    - {matern52: {options: [multi_input]}}
+    - add
+    - prod
+  likelihoods: [gaussian]
+  inference: [exact]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

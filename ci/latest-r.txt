@@ -1,0 +1,5 @@
+# R packages for the R runners, newest release from CRAN (CIP-0007).
+jsonlite
+DiceKriging
+kergp
+GauPro
