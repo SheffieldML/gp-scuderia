@@ -28,3 +28,13 @@ Probe details are in `julia/probe/NOTES.md`.
 - `kern.white` where a test input coincides with a training input. KernelFunctions returns the variance as the cross-covariance there; the wire, like GPy, returns zero.
 
 `scripts/check_julia_refusals.py juliagps` exercises each refusal and the controls that must run.
+
+## GaussianProcesses.jl (`gaussianprocesses`)
+
+`GaussianProcesses.jl` stores log parameters, so the runner converts: a kernel takes `log(lengthscale)` and `log(sigma)` with `sigma = sqrt(variance)` (`SE`, `SEArd`, `Mat32Iso`, `Mat32Ard`, `Mat52Iso`, `Mat52Ard`, `Const` for bias), and `GPE` takes `log(sqrt(noise))`. The log likelihood is `gp.target` and `predict_f` gives the latent variance, to which the runner adds noise. Inputs are `d x n`. On the RBF and ARD goldens it agrees with `juliagps` to about 1e-15.
+
+It has no white kernel, so `kern.white` is refused, as are `kern.linear`, `kern.coregionalize`, `active_dims`, a constant mean (the runner uses `MeanZero` and the target shift) and everything the `juliagps` list refuses. `scripts/check_julia_refusals.py gaussianprocesses` covers it.
+
+## Round trip with GPy
+
+`scripts/roundtrip_juliagps.py`, run with the GPy interpreter, checks an RBF Gaussian regression in both directions: GPy writes the document and `juliagps` reproduces GPy's numbers; Julia writes the document (`julia/juliagps/exportModel.jl`) and GPy reproduces AbstractGPs' numbers. Agreement is within 1e-6. It is not in CI because it needs GPy and Julia together.

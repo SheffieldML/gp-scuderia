@@ -1,0 +1,22 @@
+name: gaussianprocesses
+runners:
+  - id: julia
+    kind: julia
+    script: julia/gaussianprocesses/runGaussianprocesses.jl
+    install: {pinned: ci/pinned-julia.txt, latest: ci/latest-julia.txt}
+    versions_from_run: true
+ci:
+  modes: [pinned, latest]
+  unsupported_check: true
+capabilities:
+  approximations: [ftc]
+  kernels:                       # GaussianProcesses.jl has no white kernel; probe in julia/probe/NOTES.md
+    - {rbf: {options: [ard, multi_input]}}
+    - {matern32: {options: [ard, multi_input]}}
+    - {matern52: {options: [ard, multi_input]}}
+    - bias
+    - add
+    - prod
+  likelihoods: [gaussian]
+  inference: [exact]
+  extras: [normalizer.center, normalizer.standardize]

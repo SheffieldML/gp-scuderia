@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_julia-ci-matrix"
 title: "Julia job in the generated CI matrix"
-status: "Ready"
+status: "In Progress"
 priority: "Medium"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -35,3 +35,6 @@ Add a Julia job to the generated CI matrix using `julia-actions/setup-julia`, wi
 
 ### 2026-11-28
 Created from the accepted CIP-000A.
+
+### 2026-11-28
+Workflow edits committed; the workflow has not yet run on GitHub.

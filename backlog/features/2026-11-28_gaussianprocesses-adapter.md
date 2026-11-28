@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_gaussianprocesses-adapter"
 title: "GaussianProcesses.jl adapter and framework file (phase 2)"
-status: "Ready"
+status: "Completed"
 priority: "Low"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -22,10 +22,10 @@ Add the second Julia adapter, reusing `julia/GPScuderia/`. `GaussianProcesses.jl
 
 ## Acceptance Criteria
 
-- [ ] Declared goldens match the oracle within tolerance
-- [ ] Unsupported models are refused with a reason
-- [ ] Log-parameter conversions documented in `docs/`
-- [ ] Framework file and registry updated
+- [x] Declared goldens match the oracle within tolerance
+- [x] Unsupported models are refused with a reason
+- [x] Log-parameter conversions documented in `docs/`
+- [x] Framework file and registry updated
 
 ## Related
 
@@ -36,3 +36,6 @@ Add the second Julia adapter, reusing `julia/GPScuderia/`. `GaussianProcesses.jl
 
 ### 2026-11-28
 Created from the accepted CIP-000A.
+
+### 2026-11-28
+Adapter and framework file done; goldens match, refusals verified. kern.white refused (no white kernel in the package).

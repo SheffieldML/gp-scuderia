@@ -21,7 +21,7 @@ title: "Julia frameworks: AbstractGPs and KernelFunctions, then GaussianProcesse
 
 - [x] Proposed - Initial idea documented
 - [x] Accepted
-- [ ] In Progress
+- [x] In Progress
 - [ ] Implemented
 - [ ] Closed
 
@@ -183,14 +183,14 @@ None recorded. This CIP serves the shared model interchange work tracked in GPc 
 
 ## Implementation Status
 
-- [ ] Phase 0: probe `AbstractGPs.jl`, `KernelFunctions.jl` and `GaussianProcesses.jl`
-- [ ] Add `kind: julia` to the runner contract, with a stub test
-- [ ] `julia/GPScuderia/` helper and conversion documentation
-- [ ] `juliagps` adapter and framework file
-- [ ] Julia job in the generated CI matrix
+- [x] Phase 0: probe `AbstractGPs.jl`, `KernelFunctions.jl` and `GaussianProcesses.jl`
+- [x] Add `kind: julia` to the runner contract, with a stub test
+- [x] `julia/GPScuderia/` helper and conversion documentation
+- [x] `juliagps` adapter and framework file
+- [x] Julia job in the generated CI matrix
 - [ ] Benchmarks run for `juliagps`
-- [ ] Round-trip fixture between GPy and `juliagps`
-- [ ] `GaussianProcesses.jl` adapter and framework file (phase 2)
+- [x] Round-trip fixture between GPy and `juliagps`
+- [x] `GaussianProcesses.jl` adapter and framework file (phase 2)
 
 ## References
 

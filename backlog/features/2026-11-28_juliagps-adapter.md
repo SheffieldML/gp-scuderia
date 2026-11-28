@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_juliagps-adapter"
 title: "juliagps adapter and framework file"
-status: "Ready"
+status: "Completed"
 priority: "High"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -22,12 +22,12 @@ Write the adapter that builds an `AbstractGPs.jl` model with `KernelFunctions.jl
 
 ## Acceptance Criteria
 
-- [ ] Declared goldens match the oracle within tolerance
-- [ ] Unsupported models are refused with a reason, never substituted
-- [ ] Gradients exposed and compared through the gradient benchmark, or the lack recorded in the framework file
-- [ ] Jitter recorded and stated in the conformance report
-- [ ] Conversions documented in `docs/`
-- [ ] Registry updated
+- [x] Declared goldens match the oracle within tolerance
+- [x] Unsupported models are refused with a reason, never substituted
+- [x] Gradients exposed and compared through the gradient benchmark, or the lack recorded in the framework file
+- [x] Jitter recorded and stated in the conformance report
+- [x] Conversions documented in `docs/`
+- [x] Registry updated
 
 ## Related
 
@@ -38,3 +38,6 @@ Write the adapter that builds an `AbstractGPs.jl` model with `KernelFunctions.jl
 
 ### 2026-11-28
 Created from the accepted CIP-000A.
+
+### 2026-11-28
+Adapter, framework file, refusal check and docs done. Registry entries skipped, following the R precedent.

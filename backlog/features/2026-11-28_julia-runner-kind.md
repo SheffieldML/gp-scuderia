@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_julia-runner-kind"
 title: "Add kind: julia to the runner contract"
-status: "Ready"
+status: "Completed"
 priority: "High"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -22,10 +22,10 @@ Add a Julia runner kind with a stub Julia runner exercised by `scripts/check_run
 
 ## Acceptance Criteria
 
-- [ ] Stub Julia runner passes the contract check
-- [ ] `ci/pinned-julia.txt` and `ci/latest-julia.txt` (or the Manifest equivalent) exist
-- [ ] Contract documentation in `docs/` names `kind: julia`
-- [ ] Thread counts and dtype recorded in runner output
+- [x] Stub Julia runner passes the contract check
+- [x] `ci/pinned-julia.txt` and `ci/latest-julia.txt` (or the Manifest equivalent) exist
+- [x] Contract documentation in `docs/` names `kind: julia`
+- [x] Thread counts and dtype recorded in runner output
 
 ## Related
 
@@ -36,3 +36,6 @@ Add a Julia runner kind with a stub Julia runner exercised by `scripts/check_run
 
 ### 2026-11-28
 Created from the accepted CIP-000A.
+
+### 2026-11-28
+kind: julia implemented in harness, ci_matrix and checks; stub contract test passes locally.

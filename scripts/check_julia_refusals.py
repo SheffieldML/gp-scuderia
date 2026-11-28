@@ -1,6 +1,6 @@
 """Julia runners refuse what they cannot realise exactly, and never substitute (CIP-000A).
 
-Usage: python scripts/check_julia_refusals.py juliagps
+Usage: python scripts/check_julia_refusals.py juliagps|gaussianprocesses
 Each case edits a golden into something outside the package's exact-Gaussian slice and checks
 that the runner answers `refused`, not a number and not an error. Cases that must run
 (controls) guard against a runner that refuses everything.
@@ -38,7 +38,8 @@ white = {"type": "kern.add", "parts": [base["kernel"], {"type": "kern.white", "v
 cases = {
     "control": (edit(), False),
     "ARD control": (edit(kernel=kern(ARD=True, lengthscale=[0.8])), False),
-    "white kernel control (test input off the training set)": (at([[train[0] + 0.01]], kernel=white), False),
+    "white kernel (test input off the training set)": (at([[train[0] + 0.01]], kernel=white), fw == "gaussianprocesses"),
+    "bias kernel control": (edit(kernel={"type": "kern.add", "parts": [base["kernel"], {"type": "kern.bias", "variance": 0.3}]}), False),
     "approximation dtc": (edit(approximation="dtc"), True),
     "approximation pitc": (edit(approximation="pitc"), True),
     "linear kernel": (edit(kernel={"type": "kern.linear", "variances": 1.0}), True),
