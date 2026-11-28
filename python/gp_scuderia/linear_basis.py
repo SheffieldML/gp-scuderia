@@ -97,3 +97,6 @@ def reference_from_doc(doc, Xnew):
                   value=beta.get("value"), prior_mean=beta.get("prior_mean"), prior_cov=beta.get("prior_cov"))
     return {"log_likelihood": r["log_likelihood"], "Xnew": Xs.tolist(),
             "mean": r["mean"].tolist(), "var": (r["var"] + lik["variance"]).tolist(), "beta": r["beta"].tolist()}
+
+
+from .kernel_form import kernel_form, NotKernelForm  # noqa: E402,F401  (re-exported)

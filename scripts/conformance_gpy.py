@@ -26,7 +26,7 @@ def raises(f, exc, label):
 
 for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_matern52",
              "ftc_standardize", "dtcvar_mean_constant", "ftc_icm", "ftc_lcm",
-             "laplace_bernoulli", "laplace_poisson", "ftc_linear_fixed"]:
+             "laplace_bernoulli", "laplace_poisson", "ftc_linear_fixed", "ftc_linear_intercept_fixed"]:
     doc = load(root / "examples" / (name + ".yaml"))
     ref = doc["x-reference"]; tol = ref["tolerance"]
     m = A.from_wire(doc)
@@ -48,7 +48,7 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_mate
     check(abs(m2.log_likelihood() - m.log_likelihood()) < 1e-12, "%s rebuilt model has the same log likelihood" % name)
 
 # Estimated-beta modes (CIP-0009): no GPy model realises them, so only reference() is exercised.
-for name in ["ftc_linear_profiled", "ftc_linear_flat_prior", "ftc_linear_gaussian_prior", "ftc_linear_quadratic_profiled"]:
+for name in ["ftc_linear_profiled", "ftc_linear_flat_prior", "ftc_linear_gaussian_prior", "ftc_linear_gaussian_prior_diag", "ftc_linear_quadratic_profiled"]:
     doc = load(root / "examples" / (name + ".yaml"))
     ref = doc["x-reference"]; tol = ref["tolerance"]
     r = A.reference(doc, ref["Xnew"])
@@ -57,6 +57,18 @@ for name in ["ftc_linear_profiled", "ftc_linear_flat_prior", "ftc_linear_gaussia
           and np.abs(np.array(r["var"]) - ref["var"]).max() <= tol["var"],
           "%s reproduces its x-reference from GPy's K and noise" % name)
     raises(lambda: A.from_wire(doc), UnsupportedByFramework, "%s: no GPy model for estimated beta" % name)
+
+# The bias/linear rewrite used for GPc and GPmat, checked against GPy's own bias and linear kernels.
+from gp_scuderia.linear_basis import kernel_form
+for name in ["ftc_linear_gaussian_prior_diag", "ftc_linear_intercept_fixed"]:
+    doc = load(root / "examples" / (name + ".yaml")); ref = doc["x-reference"]; tol = ref["tolerance"]
+    kf = kernel_form(doc)
+    check("mean" not in kf or kf["mean"]["type"] == "mean.constant", "%s rewrite leaves no linear_basis mean" % name)
+    r = A.reference(kf, ref["Xnew"])
+    check(abs(r["log_likelihood"] - ref["log_likelihood"]) <= tol["log_likelihood"]
+          and np.abs(np.array(r["mean"]) - ref["mean"]).max() <= tol["mean"]
+          and np.abs(np.array(r["var"]) - ref["var"]).max() <= tol["var"],
+          "%s kernel-form rewrite reproduces the x-reference in GPy" % name)
 
 X = np.random.RandomState(0).randn(6, 1); Y = np.sin(X)
 def refuses(model, label):

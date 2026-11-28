@@ -39,6 +39,15 @@ for name, beta in [("ftc_linear_fixed", {"mode": "fixed", "value": [1.2, -0.5, 0
     GOLDENS[name] = dict(BASE, input_dim=2, kernel=k2, data={"X": X2, "Y": [[y] for y in Y2]},
                          mean={"type": "mean.linear_basis", "basis": {"type": "basis.polynomial", "powers": LIN2},
                                "beta": beta})
+GOLDENS["ftc_linear_gaussian_prior_diag"] = dict(
+    BASE, input_dim=2, kernel=k2, data={"X": X2, "Y": [[y] for y in Y2]},
+    mean={"type": "mean.linear_basis", "basis": {"type": "basis.polynomial", "powers": LIN2},
+          "beta": {"mode": "gaussian_prior", "prior_mean": [0.5, 0.0, 0.0],
+                   "prior_cov": [[2.0, 0.0, 0.0], [0.0, 0.7, 0.0], [0.0, 0.0, 0.7]]}})
+GOLDENS["ftc_linear_intercept_fixed"] = dict(
+    BASE, input_dim=2, kernel=k2, data={"X": X2, "Y": [[y] for y in Y2]},
+    mean={"type": "mean.linear_basis", "basis": {"type": "basis.polynomial", "powers": [[0, 0]]},
+          "beta": {"mode": "fixed", "value": [0.9]}})
 GOLDENS["ftc_linear_quadratic_profiled"] = dict(
     BASE, input_dim=1, kernel=k1, data={"X": X1, "Y": [[y] for y in Y1]},
     mean={"type": "mean.linear_basis", "basis": {"type": "basis.polynomial", "powers": QUAD1},

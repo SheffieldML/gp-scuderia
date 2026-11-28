@@ -296,8 +296,8 @@ types:
       and predictive variance (CIP-0009). Exact GP only in 0.1. Not interchangeable
       with mean.constant except for the intercept-only fixed case.
     gpy: {class: gp_scuderia.gpy_adapter._BasisMean, notes: 'fixed beta is native; estimated modes use GPy K, K* and noise with the GLS algebra of gp_scuderia.linear_basis. GPy adds 1e-8 to the noise, so log p differs from the exact reference by ~1e-7'}
-    gpc: {status: not-yet-checked}
-    gpmat: {status: not-yet-checked}
+    gpc: {adapter: gp_scuderia.kernel_form, notes: "No mapping abstraction. gaussian_prior with a diagonal prior over an intercept and all-input linear columns is rewritten exactly as bias + linear kernels (kernel_form); an intercept-only fixed beta becomes mean.constant. Everything else refuses. Not run: gpc is not installed here."}
+    gpmat: {adapter: octave/gpscuderia/gpscuderiaKernelForm.m, notes: "As gpc: exact bias + linear kernel rewrite where one exists, refusal elsewhere. Not run: Octave is broken locally (missing hdf5)."}
     gpytorch: {status: not-yet-checked}
     gpflow: {status: not-yet-checked}
     gpjax: {status: not-yet-checked}
@@ -370,3 +370,6 @@ capability_options:
   kern.matern32: [ard, multi_input]
   kern.matern52: [ard, multi_input]
   kern.linear: [ard]
+  # mean.linear_basis (CIP-0009): the beta mode, plus `beyond_kernel_form` for a fixed or
+  # Gaussian-prior golden that a constant mean with bias and linear kernels cannot express exactly.
+  mean.linear_basis: [beta.fixed, beta.profiled, beta.flat_prior, beta.gaussian_prior, beyond_kernel_form]

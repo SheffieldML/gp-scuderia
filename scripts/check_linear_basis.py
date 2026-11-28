@@ -119,6 +119,28 @@ real_fails = list(fails)
 fails.clear()
 print("== deliberately broken reference (must fail)")
 golden_fail = False
+from gp_scuderia import load
+# kernel_form refuses what bias and linear kernels cannot express, and never substitutes.
+import copy
+from gp_scuderia.kernel_form import NotKernelForm as UnsupportedByFramework
+base = load(pathlib.Path(__file__).resolve().parents[1] / "examples" / "ftc_linear_gaussian_prior_diag.yaml")
+def _variant(**beta):
+    d = copy.deepcopy(base); d["mean"]["beta"].update(beta); return d
+def _refused(d, label):
+    global golden_fail
+    try:
+        lb.kernel_form(d); print("FAIL kernel_form refuses " + label); golden_fail = True
+    except UnsupportedByFramework as e:
+        print("ok   kernel_form refuses %s" % label)
+_refused(load(pathlib.Path(__file__).resolve().parents[1] / "examples" / "ftc_linear_gaussian_prior.yaml"), "correlated prior_cov")
+_refused(_variant(prior_mean=[0.5, 0.2, 0.0]), "non-zero prior mean on a linear column")
+_refused(_variant(prior_cov=[[2.0, 0, 0], [0, 0.7, 0], [0, 0, 0.9]]), "unequal linear prior variances")
+_refused(load(pathlib.Path(__file__).resolve().parents[1] / "examples" / "ftc_linear_profiled.yaml"), "profiled beta")
+_refused(load(pathlib.Path(__file__).resolve().parents[1] / "examples" / "ftc_linear_fixed.yaml"), "fixed beta on a non-intercept basis")
+_refused(load(pathlib.Path(__file__).resolve().parents[1] / "examples" / "ftc_linear_quadratic_profiled.yaml"), "quadratic basis")
+_part = copy.deepcopy(base); _part["mean"]["basis"]["powers"] = [[0, 0], [1, 0]]
+_part["mean"]["beta"].update(prior_mean=[0.5, 0.0], prior_cov=[[2.0, 0], [0, 0.7]])
+_refused(_part, "linear columns that do not cover every input")
 # The committed goldens reproduce their own x-reference.
 from gp_scuderia import load
 for gpath in sorted((pathlib.Path(__file__).resolve().parents[1] / "examples").glob("ftc_linear_*.yaml")):

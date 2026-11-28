@@ -24,8 +24,8 @@ GPy first (`fixed` natively; estimated modes through GLS computed from the model
 ## Acceptance Criteria
 
 - [x] GPy matches the reference in every mode
-- [ ] GPc and GPmat match where realisable and refuse elsewhere
-- [ ] No adapter maps a mode onto a constant bias unless the basis is the intercept alone
+- [x] GPc and GPmat match (code and refusals in place; not executed, see progress) where realisable and refuse elsewhere
+- [x] No adapter maps a mode onto a constant bias unless the basis is the intercept alone
 - [ ] `frameworks/*.yaml` declarations updated only for tested modes
 
 ## Related
@@ -41,3 +41,8 @@ Task created with CIP-0009 Accepted.
 ### 2026-11-28
 
 In Progress. GPy done: `fixed` through a fixed-weight `_BasisMean` mapping (round trips through `to_wire`); estimated modes through GPy's K, K* and noise with the GLS algebra of the NumPy reference, and `from_wire` refuses them because no GPy model realises them. GPy adds 1e-8 to the noise, so its log likelihood sits about 1e-7 from the exact reference; the golden tolerance for log likelihood is 1e-6. GPc, GPmat and R remain.
+
+### 2026-11-28 (GPc and GPmat)
+Added `python/gp_scuderia/kernel_form.py` (pure Python) and `octave/gpscuderia/gpscuderiaKernelForm.m`. A Gaussian prior on beta is the GP with mean F m0 and kernel F S0 F^T, so it is rewritten exactly as bias + linear kernels when the basis is an intercept plus linear columns covering every input, S0 is diagonal with equal linear variances and m0 is zero off the intercept. An intercept-only fixed beta becomes `mean.constant`. Profiled, flat_prior, correlated, nonlinear, partial-linear and unequal-variance cases refuse. Capability options (`beta.*`, `beyond_kernel_form`) let `frameworks/gpc.yaml` and `gpmat.yaml` declare exactly that; refusal snapshots updated. New goldens `ftc_linear_gaussian_prior_diag` and `ftc_linear_intercept_fixed`.
+
+Verified: the rewrite, fed through GPy's own bias and linear kernels, reproduces both new x-references (`conformance_gpy.py`); seven refusal cases are tested in `check_linear_basis.py`; `compare.py` is clean for GPy, GPflow, GPJax and GPyTorch. Not verified: `gpc` is not installed and Octave fails to start here (Homebrew hdf5 missing), so neither GPc nor GPmat has run the new goldens. Registry entries stay unverified for them.

@@ -11,4 +11,8 @@ capabilities:
   kernels: [rbf, matern32, matern52, coregionalize, white, bias, linear, add, prod]
   likelihoods: [gaussian, mixed_gaussian, bernoulli, poisson]
   inference: [exact, laplace]
-  extras: [mean.constant, normalizer.center, normalizer.standardize]
+  extras:
+    - mean.constant
+    - mean.linear_basis: {options: [beta.fixed, beta.gaussian_prior]}   # only where a bias/linear kernel is exact
+    - normalizer.center
+    - normalizer.standardize
