@@ -1,0 +1,6 @@
+# Julia packages for the Julia runners (CIP-000A), one "package version" per line.
+# julia/install.jl installs exactly these versions into the julia/ project.
+JSON 1.13.4
+AbstractGPs 0.5.25
+KernelFunctions 0.11.1
+GaussianProcesses 0.12.6

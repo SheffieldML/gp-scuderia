@@ -1,7 +1,7 @@
 """Emit the CI job matrix from frameworks/*.yaml (CIP-0003).
 
 Usage: python scripts/ci_matrix.py [--latest] [--github-output]
-Entries are {framework, mode, kind, install?, env?, unsupported_check}; python and r runners
+Entries are {framework, mode, kind, install?, env?, unsupported_check}; python, r and julia runners
 carry an install list, octave runners an env variable. Frameworks with
 ci.job set (bespoke jobs such as gpc) are left to their own job. Latest-mode entries are
 only emitted with --latest (scheduled and manual runs).
@@ -23,7 +23,7 @@ def matrix(include_latest):
                 continue
             e = {"framework": name, "mode": mode, "kind": rn["kind"],
                  "unsupported_check": bool(ci.get("unsupported_check")) and mode == "pinned"}
-            if rn["kind"] in ("python", "r"):
+            if rn["kind"] in ("python", "r", "julia"):
                 e["install"] = rn["install"][mode]
             else:
                 e["env"] = rn["env"]

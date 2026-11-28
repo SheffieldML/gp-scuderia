@@ -1,0 +1,23 @@
+name: juliagps
+runners:
+  - id: julia
+    kind: julia
+    script: julia/juliagps/runJuliagps.jl
+    install: {pinned: ci/pinned-julia.txt, latest: ci/latest-julia.txt}
+    versions_from_run: true
+ci:
+  modes: [pinned, latest]
+  unsupported_check: true
+capabilities:
+  approximations: [ftc]
+  kernels:                       # AbstractGPs with KernelFunctions; probe in julia/probe/NOTES.md
+    - {rbf: {options: [ard, multi_input]}}
+    - {matern32: {options: [ard, multi_input]}}
+    - {matern52: {options: [ard, multi_input]}}
+    - white
+    - bias
+    - add
+    - prod
+  likelihoods: [gaussian]
+  inference: [exact]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

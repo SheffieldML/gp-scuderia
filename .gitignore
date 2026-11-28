@@ -6,3 +6,5 @@ __pycache__/
 *.code-workspace
 *.code-workspace~
 .rlib/
+.julia-dist/
+.julia-depot/

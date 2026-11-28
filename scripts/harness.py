@@ -15,7 +15,7 @@ def versions(runner):
 
 
 THREAD_VARS = {"OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1",
-               "VECLIB_MAXIMUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1",
+               "VECLIB_MAXIMUM_THREADS": "1", "JULIA_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1",
                "TF_NUM_INTRAOP_THREADS": "1", "TF_NUM_INTEROP_THREADS": "1",
                "XLA_FLAGS": "--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1"}
 
@@ -39,8 +39,9 @@ def launch(fw, runner, tasks, extra, threads=None):
         task, out = tmp / (tag + "-task.json"), tmp / (tag + "-result.json")
         v2 = any("operations" in t for t in batch)   # /2 only when it is used, so /1 runners keep working
         task.write_text(json.dumps({"schema": "gp-scuderia-task/%d" % (2 if v2 else 1), "tasks": batch}))
-        if runner["kind"] in ("octave", "r"):
-            tool = ["octave-cli", "--no-gui"] if runner["kind"] == "octave" else ["Rscript", "--vanilla"]
+        if runner["kind"] in ("octave", "r", "julia"):
+            tool = {"octave": ["octave-cli", "--no-gui"], "r": ["Rscript", "--vanilla"],
+                    "julia": [os.environ.get("JULIA", "julia"), "--project=" + str(root / "julia")]}[runner["kind"]]
             cmd = tool + [str(root / runner["script"])]
             env.update(GPSCUDERIA_TASK=str(task), GPSCUDERIA_OUT=str(out))
         else:
@@ -58,7 +59,7 @@ def launch(fw, runner, tasks, extra, threads=None):
             r, why = once([t], t["name"])
             results[t["name"]] = r["results"][t["name"]] if r else {"error": why}
         return results
-    for k in ("octave", "r", fw):
+    for k in ("octave", "r", "julia", fw):
         if k in raw:
             extra[k] = raw[k]
     return raw["results"]
