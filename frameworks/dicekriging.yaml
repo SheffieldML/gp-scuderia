@@ -1,0 +1,19 @@
+name: dicekriging
+runners:
+  - id: r
+    kind: r
+    script: R/dicekriging/runDicekriging.R
+    install: {pinned: ci/pinned-r.txt, latest: ci/latest-r.txt}
+    versions_from_run: true
+ci:
+  modes: [pinned, latest]
+  unsupported_check: true
+capabilities:
+  approximations: [ftc]
+  kernels:                       # one stationary kernel per model; noise is noise.var
+    - {rbf: {options: [multi_input]}}
+    - {matern32: {options: []}}
+    - {matern52: {options: []}}
+  likelihoods: [gaussian]
+  inference: [exact]
+  extras: [mean.constant, normalizer.center, normalizer.standardize]

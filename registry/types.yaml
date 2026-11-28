@@ -350,7 +350,8 @@ reserved_inference:
 # (for example `ARD: true` exercises `ard`). Add options here only when a
 # framework's refusal pattern needs them (CIP-0003).
 capability_options:
-  kern.rbf: [ard]
-  kern.matern32: [ard]
-  kern.matern52: [ard]
+  # multi_input: the kernel is the isotropic wire kernel when the input dimension exceeds one.
+  kern.rbf: [ard, multi_input]
+  kern.matern32: [ard, multi_input]
+  kern.matern52: [ard, multi_input]
   kern.linear: [ard]

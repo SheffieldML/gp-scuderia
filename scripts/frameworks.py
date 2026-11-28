@@ -72,6 +72,8 @@ def features(doc):
         opts = kernels.setdefault(k["type"][5:], set())
         if k.get("ARD"):
             opts.add("ard")
+        if doc.get("input_dim", 1) > 1 and k["type"] in ("kern.rbf", "kern.matern32", "kern.matern52"):
+            opts.add("multi_input")
         for part in k.get("parts", []):
             walk(part)
     walk(doc["kernel"])
