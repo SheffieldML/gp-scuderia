@@ -68,6 +68,8 @@ jobs:
       - if: matrix.kind == 'r'
         run: |
           pip install numpy pyyaml jsonschema
+          # CRAN has no binaries for this runner image, so packages build from source
+          sudo apt-get update && sudo apt-get install -y libuv1-dev libnlopt-dev cmake
           mkdir -p "$HOME/rlib"
           echo "R_LIBS_USER=$HOME/rlib" >> "$GITHUB_ENV"
           R_LIBS_USER="$HOME/rlib" Rscript R/install.R ${{ matrix.install }}
