@@ -13,4 +13,8 @@ def reference(doc, Xnew):
             doc = kernel_form(doc)
         except NotKernelForm as e:
             raise UnsupportedByFramework(str(e))
+        def has_linear(k):
+            return k["type"] == "kern.linear" or any(has_linear(q) for q in k.get("parts", []))
+        if has_linear(doc["kernel"]):
+            raise UnsupportedByFramework("the GPc interchange reader has no kern.linear yet")
     return I.reference(I.from_wire(doc), Xnew)

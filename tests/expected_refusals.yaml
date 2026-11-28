@@ -3,7 +3,7 @@
 # fails if the derived expectations differ, so changing a declaration or adding a golden
 # is a deliberate edit here too.
 gpy: []
-gpc: [ftc_linear_fixed, ftc_linear_flat_prior, ftc_linear_gaussian_prior, ftc_linear_profiled, ftc_linear_quadratic_profiled]
+gpc: [ftc_linear_fixed, ftc_linear_flat_prior, ftc_linear_gaussian_prior, ftc_linear_profiled, ftc_linear_quadratic_profiled, ftc_linear_gaussian_prior_diag]
 gpflow: [fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson, ftc_linear_fixed, ftc_linear_flat_prior, ftc_linear_gaussian_prior, ftc_linear_gaussian_prior_diag, ftc_linear_intercept_fixed, ftc_linear_profiled, ftc_linear_quadratic_profiled]
 gpytorch: [ftc_rbf_white, dtcvar_ard_data, dtcvar_mean_constant, fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson, ftc_linear_fixed, ftc_linear_flat_prior, ftc_linear_gaussian_prior, ftc_linear_gaussian_prior_diag, ftc_linear_intercept_fixed, ftc_linear_profiled, ftc_linear_quadratic_profiled]
 gpjax: [fitc_matern52, ftc_icm, ftc_lcm, laplace_bernoulli, laplace_poisson, ftc_linear_fixed, ftc_linear_flat_prior, ftc_linear_gaussian_prior, ftc_linear_gaussian_prior_diag, ftc_linear_intercept_fixed, ftc_linear_profiled, ftc_linear_quadratic_profiled]
