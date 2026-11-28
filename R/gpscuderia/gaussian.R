@@ -9,13 +9,15 @@
 # the normalised scale; the reported log likelihood includes the -n log s Jacobian; the
 # predictive variance includes the noise.
 
-gpscuderia_check_gaussian <- function(doc, kernels, why_not = list()) {
+gpscuderia_check_gaussian <- function(doc, kernels, why_not = list(), means = "mean.constant") {
   if (!identical(if (is.null(doc$approximation)) "ftc" else doc$approximation, "ftc"))
     gpscuderia_refuse(sprintf("approximation '%s' is not realised by this package", doc$approximation))
   if (!identical(doc$likelihood$type, "likelihoods.gaussian"))
     gpscuderia_refuse(sprintf("%s: the package fits Gaussian noise only", doc$likelihood$type))
   if (!identical(if (is.null(doc$inference)) "exact" else doc$inference, "exact"))
     gpscuderia_refuse(sprintf("inference '%s' is not realised by this package", doc$inference))
+  if (!is.null(doc$mean) && !doc$mean$type %in% means)
+    gpscuderia_refuse(sprintf("%s is not realised by this package", doc$mean$type))
   if (!is.null(doc$mean) && !is.null(doc$normalizer))
     gpscuderia_refuse("mean and normalizer together are not in schema 0.1")
   walk <- function(k) {
@@ -42,7 +44,7 @@ gpscuderia_gaussian_problem <- function(doc) {
     m <- doc$normalizer$mean
     s <- if (is.null(doc$normalizer$std)) 1 else doc$normalizer$std
   }
-  if (!is.null(doc$mean)) m <- doc$mean$value
+  if (!is.null(doc$mean) && identical(doc$mean$type, "mean.constant")) m <- doc$mean$value
   list(X = X, Xnew = Xn, z = (y - m) / s, shift = m, scale = s, n = length(y),
        noise = doc$likelihood$variance, jacobian = length(y) * log(s))
 }

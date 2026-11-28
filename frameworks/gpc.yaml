@@ -8,7 +8,11 @@ ci:
   job: gpc                     # bespoke job: C++ build, CLI and Python package
 capabilities:
   approximations: [ftc, dtc, dtcvar, fitc, pitc]
-  kernels: [rbf, matern32, matern52, coregionalize, white, bias, linear, add, prod]
+  kernels: [rbf, matern32, matern52, coregionalize, white, bias, add, prod]   # CInterchange has no kern.linear reader yet (GPc has CLinKern)
   likelihoods: [gaussian, mixed_gaussian, bernoulli, poisson]
   inference: [exact, laplace]
-  extras: [mean.constant, normalizer.center, normalizer.standardize]
+  extras:
+    - mean.constant
+    - mean.linear_basis: {options: [beta.fixed]}   # intercept-only, as a bias kernel; gaussian_prior needs a linear kernel, which the GPc reader lacks
+    - normalizer.center
+    - normalizer.standardize

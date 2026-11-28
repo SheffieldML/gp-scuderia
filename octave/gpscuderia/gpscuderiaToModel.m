@@ -19,6 +19,9 @@ end
 if ~isfield(doc, 'data')
   error('gpscuderia:data', 'GPmat adapter needs embedded data');
 end
+if isfield(doc, 'mean') && strcmp(doc.mean.type, 'mean.linear_basis')
+  doc = gpscuderiaKernelForm(doc);   % exact bias/linear kernel form, or gpscuderia:unsupported
+end
 d = doc.input_dim;
 X = doc.data.X; Y = doc.data.Y;
 if size(X, 2) ~= d

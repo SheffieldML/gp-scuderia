@@ -1,0 +1,45 @@
+schema_version: '0.1'
+type: models.gp_regression
+output_dim: 1
+approximation: ftc
+likelihood: {type: likelihoods.gaussian, variance: 0.09}
+input_dim: 2
+kernel: {type: kern.rbf, variance: 1.1, lengthscale: 1.4, ARD: false}
+data:
+  X:
+  - [1.629369, 0.704077]
+  - [0.681938, -0.336843]
+  - [-0.310952, 1.725543]
+  - [0.453475, 0.026208]
+  - [-0.527934, 1.438447]
+  - [1.056955, -1.03833]
+  - [-0.140936, -1.652807]
+  - [0.19375, 1.955556]
+  Y:
+  - [0.749664]
+  - [0.642429]
+  - [2.576239]
+  - [1.235892]
+  - [2.564538]
+  - [0.321278]
+  - [0.363429]
+  - [2.919045]
+mean:
+  type: mean.linear_basis
+  basis:
+    type: basis.polynomial
+    powers:
+    - [0, 0]
+    - [1, 0]
+    - [0, 1]
+  beta: {mode: flat_prior}
+x-reference:
+  log_likelihood: -7.266041199491728
+  Xnew:
+  - [-1.0, 0.0]
+  - [0.5, 0.5]
+  - [2.0, 1.5]
+  mean: [1.7546025025452374, 1.4083726796539289, 1.2781393137408212]
+  var: [0.6919417580243572, 0.17907844082923655, 0.6113736917191349]
+  oracle: numpy reference gp_scuderia.linear_basis (CIP-0009)
+  tolerance: {log_likelihood: 1.0e-06, mean: 1.0e-07, var: 1.0e-07}
