@@ -68,3 +68,32 @@ def reference(K, noise, y, F, mode, Fs, Ks, kss_diag, value=None, prior_mean=Non
     if post_cov is not None:
         var = var + np.einsum("im,ij,jm->m", R, post_cov, R)
     return {"log_likelihood": float(ll), "mean": mean, "var": var, "beta": beta}
+
+
+def _rbf(A, B, variance, lengthscale):
+    sq = ((np.asarray(A)[:, None, :] - np.asarray(B)[None, :, :]) ** 2).sum(-1)
+    return variance * np.exp(-0.5 * sq / lengthscale ** 2)
+
+
+def reference_from_doc(doc, Xnew):
+    """Reference for a wire document: exact GP, one non-ARD kern.rbf, Gaussian likelihood.
+
+    Returns the wire runner quantities: log likelihood, predictive mean, and the
+    predictive variance of y (latent variance plus the noise variance).
+    """
+    k, lik, mean = doc["kernel"], doc["likelihood"], doc["mean"]
+    if (k["type"] != "kern.rbf" or k.get("ARD") or lik["type"] != "likelihoods.gaussian"
+            or doc.get("approximation", "ftc") != "ftc" or doc["output_dim"] != 1
+            or mean["type"] != "mean.linear_basis"):
+        raise NotImplementedError("reference_from_doc covers exact single-output rbf regression only")
+    X = np.asarray(doc["data"]["X"], float)
+    Y = np.asarray(doc["data"]["Y"], float).ravel()
+    Xs = np.asarray(Xnew, float)
+    powers = mean["basis"]["powers"]
+    beta = mean["beta"]
+    r = reference(_rbf(X, X, k["variance"], k["lengthscale"]), lik["variance"], Y,
+                  polynomial_basis(X, powers), beta["mode"], polynomial_basis(Xs, powers),
+                  _rbf(X, Xs, k["variance"], k["lengthscale"]), np.full(len(Xs), k["variance"]),
+                  value=beta.get("value"), prior_mean=beta.get("prior_mean"), prior_cov=beta.get("prior_cov"))
+    return {"log_likelihood": r["log_likelihood"], "Xnew": Xs.tolist(),
+            "mean": r["mean"].tolist(), "var": (r["var"] + lik["variance"]).tolist(), "beta": r["beta"].tolist()}

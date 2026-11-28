@@ -118,6 +118,17 @@ run_all(lb.reference)
 real_fails = list(fails)
 fails.clear()
 print("== deliberately broken reference (must fail)")
+golden_fail = False
+# The committed goldens reproduce their own x-reference.
+from gp_scuderia import load
+for gpath in sorted((pathlib.Path(__file__).resolve().parents[1] / "examples").glob("ftc_linear_*.yaml")):
+    doc = load(gpath); ref = doc["x-reference"]; r = lb.reference_from_doc(doc, ref["Xnew"])
+    ok = (abs(r["log_likelihood"] - ref["log_likelihood"]) < 1e-9
+          and np.abs(np.array(r["mean"]) - ref["mean"]).max() < 1e-9
+          and np.abs(np.array(r["var"]) - ref["var"]).max() < 1e-9)
+    print(("ok   " if ok else "FAIL ") + gpath.stem + " reproduces its x-reference")
+    if not ok: golden_fail = True
+
 import io, contextlib
 buf = io.StringIO()
 with contextlib.redirect_stdout(buf):
@@ -125,4 +136,5 @@ with contextlib.redirect_stdout(buf):
 print(buf.getvalue(), end="")
 caught = bool(fails)
 print("ok   broken reference is caught" if caught else "FAIL broken reference passed the checks")
-sys.exit(0 if not real_fails and caught else 1)
+sys.exit(0 if not real_fails and caught and not golden_fail else 1)
+
