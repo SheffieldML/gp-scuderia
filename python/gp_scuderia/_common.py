@@ -18,6 +18,8 @@ def target_transform(doc):
         n = doc["normalizer"]
         return float(n["mean"]), float(n.get("std", 1.0))
     if "mean" in doc:
+        if doc["mean"]["type"] != "mean.constant":
+            raise UnsupportedByFramework("%s is not realised by this framework" % doc["mean"]["type"])
         return float(doc["mean"]["value"]), 1.0
     return 0.0, 1.0
 

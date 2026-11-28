@@ -4,6 +4,7 @@ A golden's features are compared with a framework's declared capabilities:
 all features declared -> the runner must match; any missing -> it must refuse.
 Capability entries are bare names (all options) or {name: {options: [...]}}.
 """
+import importlib.util
 import pathlib
 import yaml
 
@@ -56,7 +57,7 @@ def load_frameworks(directory=None, registry=None):
                 if name not in vocab[fam]:
                     raise ValueError("%s: '%s' is not a registry %s name" % (p.name, name, fam))
                 if opts:
-                    bad = opts - set(options.get("kern." + name, []))
+                    bad = opts - set(options.get(FAMILIES[fam] + name, []))
                     if bad:
                         raise ValueError("%s: unknown options %s for %s" % (p.name, sorted(bad), name))
         d["_caps"] = caps
@@ -78,6 +79,17 @@ def features(doc):
             walk(part)
     walk(doc["kernel"])
     extras = {doc[k]["type"]: set() for k in ("mean", "normalizer") if k in doc}
+    if doc.get("mean", {}).get("type") == "mean.linear_basis":
+        mode = doc["mean"]["beta"]["mode"]
+        extras["mean.linear_basis"].add("beta." + mode)
+        if mode in ("fixed", "gaussian_prior"):
+            # a constant mean with bias and linear kernels (GPc, GPmat) realises some of these exactly
+            spec = importlib.util.spec_from_file_location("_kernel_form", root / "python/gp_scuderia/kernel_form.py")
+            kf = importlib.util.module_from_spec(spec); spec.loader.exec_module(kf)
+            try:
+                kf.kernel_form(doc)
+            except kf.NotKernelForm:
+                extras["mean.linear_basis"].add("beyond_kernel_form")
     return {"approximations": {doc.get("approximation", "ftc"): set()}, "kernels": kernels,
             "likelihoods": {doc["likelihood"]["type"][12:]: set()},
             "inference": {doc.get("inference", "exact"): set()}, "extras": extras}

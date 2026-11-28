@@ -16,4 +16,8 @@ capabilities:
     - {matern52: {options: []}}
   likelihoods: [gaussian]
   inference: [exact]
-  extras: [mean.constant, normalizer.center, normalizer.standardize]
+  extras:
+    - mean.constant
+    - mean.linear_basis: {options: [beta.fixed, beta.profiled, beta.flat_prior, beyond_kernel_form]}
+    - normalizer.center
+    - normalizer.standardize
