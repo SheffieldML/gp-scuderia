@@ -1,7 +1,7 @@
 ---
 id: "2026-11-28_linear-basis-reference-goldens"
 title: "mean.linear_basis: NumPy reference, property checks and goldens"
-status: "In Progress"
+status: "Completed"
 priority: "High"
 created: "2026-11-28"
 last_updated: "2026-11-28"
@@ -27,7 +27,7 @@ A NumPy reference for all four `beta.mode` values, independent of any framework.
 - [x] `gaussian_prior` with large `prior_cov` approaches `flat_prior` up to the dropped term
 - [x] `profiled` and `flat_prior` predict identically and differ in log likelihood by `-0.5 log|A|`
 - [x] A deliberately wrong reference fails the checks
-- [ ] Goldens added, with `tests/expected_refusals.yaml` updated
+- [x] Goldens added, with `tests/expected_refusals.yaml` updated
 
 ## Related
 
