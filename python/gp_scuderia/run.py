@@ -26,13 +26,19 @@ def _time(func, doc, Xnew, spec, cold):
     return {"seconds_cold": cold, "seconds_median": float(med), "seconds_iqr": float(q3 - q1), "repeats": len(ts)}
 
 
-def run_tasks(func, tasks, grad=None):
-    """grad is the framework's gradient(doc) -> {wire path: dLL/dparameter} or None if it has none."""
+def _tolist(v):
+    return v.tolist() if hasattr(v, "tolist") else v
+
+
+def run_tasks(func, tasks, grad=None, bound=None, psi=None):
+    """grad is the framework's gradient(doc) -> {wire path: dLL/dparameter} or None if it has none.
+    bound(doc) -> {bound_without_kl, kl} and psi(doc) -> {psi0, psi1, psi2} are the latent-variable
+    operations of contract /3 (CIP-0006); like gradient they are requested on their own."""
     results = {}
     for t in tasks:
         try:
             doc = load(t["golden"])
-            Xnew = doc["x-reference"]["Xnew"]
+            Xnew = doc.get("x-reference", {}).get("Xnew")
             ops = t.get("operations")
             if ops == ["gradient"]:
                 if grad is None:
@@ -41,8 +47,20 @@ def run_tasks(func, tasks, grad=None):
                 results[t["name"]] = {"gradient": {k: (np.asarray(v, float).tolist() if np.ndim(v) else float(v))
                                                    for k, v in g.items()}}
                 continue
+            if ops in (["bound"], ["psi"]):
+                fn = {"bound": bound, "psi": psi}[ops[0]]
+                if fn is None:
+                    raise UnsupportedByFramework("this adapter provides no %s operation" % ops[0])
+                t0 = time.perf_counter()
+                out = fn(doc)
+                _cold = time.perf_counter() - t0
+                results[t["name"]] = {ops[0]: {k: (float(v) if np.ndim(v) == 0 else _tolist(np.asarray(v, float)))
+                                               for k, v in out.items()}}
+                if t.get("timing"):
+                    results[t["name"]]["timing"] = _time(lambda d, _x: fn(d), doc, None, t["timing"], cold=_cold)
+                continue
             if ops and set(ops) - {"log_likelihood", "predict"}:
-                raise UnsupportedByFramework("operations %s: gradient must be requested on its own" % ops)
+                raise UnsupportedByFramework("operations %s: gradient, bound and psi must each be requested on their own" % ops)
             t0 = time.perf_counter()
             g = func(doc, Xnew)          # the first call in this process for this task is the cold one
             _cold = time.perf_counter() - t0
@@ -67,9 +85,10 @@ def main(argv=None):
     module, name = a.entry.split(":")
     mod = importlib.import_module(module)
     func, grad = getattr(mod, name), getattr(mod, "gradient", None)
+    bound, psi = getattr(mod, "bound", None), getattr(mod, "psi", None)
     task = json.loads(pathlib.Path(a.task).read_text())
-    out = {"schema": "gp-scuderia-result/2", "runtime": {"python": platform.python_version()},
-           "results": run_tasks(func, task["tasks"], grad)}
+    out = {"schema": "gp-scuderia-result/3", "runtime": {"python": platform.python_version()},
+           "results": run_tasks(func, task["tasks"], grad, bound, psi)}
     pathlib.Path(a.out).write_text(json.dumps(out))
 
 

@@ -28,9 +28,10 @@
     "mean": { "$ref": "#/$defs/meanNode" },
     "normalizer": { "$ref": "#/$defs/normalizerNode" },
     "likelihood": { "$ref": "#/$defs/likelihoodNode" },
+    "latent": { "$ref": "#/$defs/latentNode" },
     "data": {
       "type": "object",
-      "required": ["X", "Y"],
+      "required": ["Y"],
       "properties": {
         "X": { "$ref": "#/$defs/matrix" },
         "Y": { "$ref": "#/$defs/matrix" }
@@ -42,6 +43,45 @@
   "additionalProperties": false,
   "allOf": [
     { "not": { "required": ["mean", "normalizer"] } },
+    {
+      "if": { "properties": { "type": { "enum": ["models.gplvm", "models.bayesian_gplvm"] } } },
+      "then": {
+        "description": "Latent variable models (CIP-0006). The inputs are latent: data carries Y only, and the latent block carries the (variational) distribution over X. Gaussian likelihood only in 0.1.",
+        "required": ["latent", "data"],
+        "properties": {
+          "data": { "not": { "required": ["X"] } },
+          "likelihood": { "properties": { "type": { "const": "likelihoods.gaussian" } } }
+        },
+        "not": { "anyOf": [ { "required": ["inference"] }, { "required": ["input_dim"] } ] }
+      },
+      "else": {
+        "description": "Every other model has observed inputs and no latent block.",
+        "not": { "required": ["latent"] },
+        "properties": { "data": { "required": ["X", "Y"] } }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "models.gplvm" } } },
+      "then": {
+        "description": "Point-estimate GP-LVM: exact (ftc) and no latent variance.",
+        "properties": {
+          "approximation": { "const": "ftc" },
+          "latent": { "not": { "anyOf": [ { "required": ["variance"] }, { "required": ["prior"] } ] } }
+        },
+        "not": { "required": ["inducing_inputs"] }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "models.bayesian_gplvm" } } },
+      "then": {
+        "description": "Bayesian GP-LVM with the collapsed bound: diagonal q(X), standard normal prior, dtcvar, inducing inputs in latent space.",
+        "required": ["approximation", "inducing_inputs"],
+        "properties": {
+          "approximation": { "const": "dtcvar" },
+          "latent": { "required": ["variance", "prior"] }
+        }
+      }
+    },
     {
       "description": "mean.linear_basis is exact-GP only in 0.1 (CIP-0009).",
       "if": {
@@ -191,6 +231,34 @@
       }
     },
     "positive": { "type": "number", "exclusiveMinimum": 0 },
+    "positiveMatrix": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "latentNode": {
+      "description": "Distribution over the latent inputs. mean is n x dim; variance is the n x dim diagonal of the covariance of q(x_n), strictly positive. Latent coordinates are identifiable only up to rotation, scale and (for ARD) permutation, so no benchmark compares them across frameworks.",
+      "type": "object",
+      "required": ["dim", "mean"],
+      "properties": {
+        "dim": { "type": "integer", "minimum": 1 },
+        "mean": { "$ref": "#/$defs/matrix" },
+        "variance": { "$ref": "#/$defs/positiveMatrix" },
+        "prior": {
+          "type": "object",
+          "required": ["type"],
+          "properties": { "type": { "const": "standard_normal" } },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
     "prior": {
       "type": "object",
       "required": ["type"],

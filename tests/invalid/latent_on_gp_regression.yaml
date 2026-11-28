@@ -1,0 +1,54 @@
+# Must be rejected: a latent block on a model with observed inputs.
+schema_version: '0.1'
+type: models.gp_regression
+input_dim: 1
+output_dim: 1
+approximation: ftc
+kernel:
+  type: kern.add
+  parts:
+  - type: kern.rbf
+    variance: 1.0
+    lengthscale: 1.0
+    ARD: false
+  - type: kern.white
+    variance: 0.1
+likelihood:
+  type: likelihoods.gaussian
+  variance: 0.1
+data:
+  X:
+  - - -2.0
+  - - -1.0
+  - - 0.0
+  - - 1.0
+  - - 2.5
+  Y:
+  - - 0.3
+  - - -0.4
+  - - 0.1
+  - - 0.8
+  - - 0.2
+x-reference:
+  log_likelihood: -5.057372431473991
+  Xnew:
+  - - -1.5
+  - - 0.5
+  - - 3.0
+  mean:
+  - -0.06972589070470193
+  - 0.4518935659782553
+  - 0.07030569162611214
+  var:
+  - 0.33610809407586983
+  - 0.33441675341328236
+  - 0.5399552012698005
+  oracle: GPy
+  tolerance:
+    log_likelihood: 0.0001
+    mean: 1.0e-07
+    var: 1.0e-05
+latent:
+  dim: 1
+  mean:
+  - - 0.0

@@ -1,0 +1,23 @@
+name: gplvm_collapse_to_sparse
+kind: latent_collapse
+description: >
+  As S goes to 0, q(X) becomes a point mass at mu and the Bayesian GP-LVM bound without its KL
+  term must equal the dtcvar log likelihood of the sparse GP regression with inputs mu (CIP-0006).
+  The reference is GPy's sparse GP evaluated on those inputs, so it uses no psi statistic at all;
+  a framework whose psi statistics or bound are wrong fails here with no latent oracle involved.
+  The generator also refuses to emit a case in which GPy's own latent bound disagrees with that
+  reference.
+seed: 62
+base:
+  n: 30
+  latent_dim: 3
+  output_dim: 4
+  inducing: 8
+  noise: 0.1
+  s_value: 1.0e-10
+  kernel: {type: kern.rbf, variance: 1.0, lengthscale: 1.2}
+cases:
+  - {id: rbf}
+  - {id: rbf_ard, kernel: {type: kern.rbf, variance: 1.5, lengthscale: [0.8, 1.4, 2.0], ARD: true}}
+  - {id: linear, kernel: {type: kern.linear, variance: 0.8}}
+tolerance: {bound_without_kl: 1.0e-4}

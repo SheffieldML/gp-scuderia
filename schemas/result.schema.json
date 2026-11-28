@@ -11,7 +11,8 @@
     "schema": {
       "enum": [
         "gp-scuderia-result/1",
-        "gp-scuderia-result/2"
+        "gp-scuderia-result/2",
+        "gp-scuderia-result/3"
       ]
     },
     "runtime": {
@@ -123,6 +124,87 @@
                       }
                     }
                   ]
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bound"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "refused"
+                  ]
+                },
+                {
+                  "required": [
+                    "log_likelihood"
+                  ]
+                }
+              ]
+            },
+            "properties": {
+              "bound": {
+                "type": "object",
+                "required": [
+                  "bound_without_kl",
+                  "kl"
+                ],
+                "additionalProperties": false,
+                "description": "Collapsed variational bound without the KL(q(X)||p(X)) term, and the KL term, both as numbers. The bound with KL is their difference; reporting them separately lets frameworks that fold the KL in be compared to those that do not.",
+                "properties": {
+                  "bound_without_kl": {
+                    "type": "number"
+                  },
+                  "kl": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "psi"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "refused"
+                  ]
+                },
+                {
+                  "required": [
+                    "log_likelihood"
+                  ]
+                }
+              ]
+            },
+            "properties": {
+              "psi": {
+                "type": "object",
+                "required": [
+                  "psi0",
+                  "psi1",
+                  "psi2"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "psi0": {
+                    "type": "array"
+                  },
+                  "psi1": {
+                    "type": "array"
+                  },
+                  "psi2": {
+                    "type": "array"
+                  }
                 }
               }
             }

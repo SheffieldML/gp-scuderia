@@ -38,3 +38,38 @@ for name in ["ftc_rbf_white", "dtcvar_ard_data", "ftc_prod_matern52", "fitc_mate
     dump(doc, p)
     to_json_twin(p)
     print(name, ref["log_likelihood"], ref["mean"])
+
+
+# Latent-variable goldens (CIP-0006) live in examples/latent/: their reference is the bound and
+# the psi statistics, not a prediction, so the prediction-based tools do not iterate over them.
+import numpy as np
+
+
+def make_bgplvm_rbf_ard():
+    """Fixed, hand-readable inputs (seeded, rounded to 3 places) for the collapsed Bayesian GP-LVM."""
+    rng = np.random.default_rng(6)
+    n, q, d, m = 8, 2, 3, 4
+    mu = np.round(rng.standard_normal((n, q)), 3)
+    S = np.round(rng.uniform(0.1, 0.6, (n, q)), 3)
+    Z = np.round(rng.standard_normal((m, q)), 3)
+    W = rng.standard_normal((q, d))
+    Y = np.round(np.sin(mu @ W) + 0.1 * rng.standard_normal((n, d)), 3)
+    return {"schema_version": "0.1", "type": "models.bayesian_gplvm", "approximation": "dtcvar",
+            "inducing_inputs": Z.tolist(),
+            "kernel": {"type": "kern.rbf", "variance": 1.5, "lengthscale": [0.9, 1.7], "ARD": True},
+            "likelihood": {"type": "likelihoods.gaussian", "variance": 0.05},
+            "latent": {"dim": q, "mean": mu.tolist(), "variance": S.tolist(), "prior": {"type": "standard_normal"}},
+            "data": {"Y": Y.tolist()}}
+
+
+p = root / "examples" / "latent" / "bgplvm_rbf_ard.yaml"
+p.parent.mkdir(exist_ok=True)
+doc = make_bgplvm_rbf_ard()
+b, ps = gpy_adapter.bound(doc), gpy_adapter.psi(doc)
+doc["x-reference"] = {**b, "psi0": np.asarray(ps["psi0"]).tolist(), "psi1": np.asarray(ps["psi1"]).tolist(),
+                      "psi2": np.asarray(ps["psi2"]).tolist(), "oracle": "GPy",
+                      # GPmat adds 1e-6 jitter to K_uu (see above): ~4e-5 on the bound; kl and psi do not use K_uu
+                      "tolerance": {"bound_without_kl": 1e-4, "kl": 1e-10, "psi": 1e-8}}
+dump(doc, p)
+to_json_twin(p)
+print("bgplvm_rbf_ard", b)

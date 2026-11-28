@@ -150,9 +150,54 @@ def _exact_inference():
     return _LIF.ExactGaussianInference(jitter=0.0) if "exact_jitter" in FEATURES else _LIF.ExactGaussianInference()
 
 
+KUU_JITTER = None   # set to force a Kuu jitter on every GPy release, as the GP-LVM comparison needs
+
+
 def _vardtc_inference():
     """VarDTC with the 1e-6 Kuu jitter the other frameworks use, where GPy allows it."""
+    if KUU_JITTER is not None:
+        v = _LIF.VarDTC()
+        v.const_jitter = KUU_JITTER
+        return v
     return _LIF.VarDTC(const_jitter=1e-6) if "kuu_jitter" in FEATURES else _LIF.VarDTC()
+
+
+def _latent_from_wire(doc):
+    """models.bayesian_gplvm: GPy.models.BayesianGPLVM with the document's own q(X), Z and parameters."""
+    if doc["type"] != "models.bayesian_gplvm":
+        raise UnsupportedByFramework("GPy adapter: %s has no adapter path yet" % doc["type"])
+    lat = doc["latent"]
+    Z = np.array(doc["inducing_inputs"], float)
+    kern = _kern_from_wire(doc["kernel"], lat["dim"])
+    m = GPy.models.BayesianGPLVM(np.array(doc["data"]["Y"], float), lat["dim"],
+                                 X=np.array(lat["mean"], float), X_variance=np.array(lat["variance"], float),
+                                 kernel=kern, Z=Z, num_inducing=len(Z))
+    m.Gaussian_noise.variance = doc["likelihood"]["variance"]
+    # The collapsed bound uses the same 1e-6 Kuu jitter as the sparse regression reference (_vardtc_inference);
+    # GPy's minibatch inference defaults to 1e-8, which would put the two 1.7e-3 apart at S -> 0.
+    m.inference_method.const_jitter = 1e-6
+    # GPy leaves updates switched off after construction, so gradients (not values) are those of
+    # the constructor's state until it is switched on; refresh so every gradient is current.
+    m.update_model(True)
+    return m
+
+
+def _kl(doc):
+    mu, S = (np.array(doc["latent"][k], float) for k in ("mean", "variance"))
+    return float(0.5 * np.sum(mu ** 2 + S - np.log(S) - 1.0))   # KL(q(X) || N(0, I))
+
+
+def bound(doc):
+    """Collapsed bound without KL, and the KL term. GPy folds -KL into log_likelihood, so we add it back."""
+    m = _latent_from_wire(doc)
+    kl = _kl(doc)
+    return {"bound_without_kl": float(np.asarray(m.log_likelihood()).ravel()[0]) + kl, "kl": kl}
+
+
+def psi(doc):
+    """psi0 (n), psi1 (n x m), psi2 (m x m, summed over n) from GPy's own kernel statistics."""
+    m = _latent_from_wire(doc)
+    return {"psi0": m.kern.psi0(m.Z, m.X), "psi1": m.kern.psi1(m.Z, m.X), "psi2": m.kern.psi2(m.Z, m.X)}
 
 
 def from_wire(doc):
@@ -329,7 +374,7 @@ def reference(doc, Xnew):
     if lik["type"] == "likelihoods.mixed_gaussian":
         meta = {"output_index": Xnew[:, lik["output_index_column"]].astype(int)[:, None]}
     mean, var = m.predict(Xnew, Y_metadata=meta)
-    ll = float(m.log_likelihood())
+    ll = float(np.asarray(m.log_likelihood()).ravel()[0])
     if doc.get("normalizer", {}).get("type") == "normalizer.standardize":
         # GPy scores the standardized targets; the wire reports log p(y).
         Y = np.asarray(doc["data"]["Y"], float)
@@ -381,7 +426,7 @@ def _laplace_reference(doc, m, Xnew):
     else:
         mean = np.exp(mu + 0.5 * s2)
         var = mean + mean ** 2 * np.expm1(s2)
-    return {"log_likelihood": float(m.log_likelihood()), "Xnew": Xnew.tolist(),
+    return {"log_likelihood": float(np.asarray(m.log_likelihood()).ravel()[0]), "Xnew": Xnew.tolist(),
             "mean": mean.tolist(), "var": var.tolist(),
             "latent_mean": mu.tolist(), "latent_var": s2.tolist()}
 
@@ -402,6 +447,8 @@ def gradient(doc):
     """The oracle: analytic dLL/d(wire parameter) from GPy, keyed by wire path (see params.py)."""
     from .params import wire_paths
     wire_paths(doc)              # raises UnsupportedByFramework outside the contract
+    if doc.get("type") == "models.bayesian_gplvm":
+        return _latent_gradient(doc)
     m = from_wire(doc)
     out = {}
     _kern_gradients(m.kern, doc["kernel"], "kernel", out)
@@ -409,13 +456,41 @@ def gradient(doc):
     return out
 
 
+def _latent_gradient(doc):
+    """Analytic gradient of bound_without_kl - kl for a Bayesian GP-LVM, in wire units."""
+    m = _latent_from_wire(doc)
+    out = {}
+    _kern_gradients(m.kern, doc["kernel"], "kernel", out)
+    out["likelihood.variance"] = float(np.asarray(m.likelihood.variance.gradient).ravel()[0])
+    out["latent.mean"] = np.asarray(m.X.mean.gradient, float).tolist()
+    out["latent.variance"] = np.asarray(m.X.variance.gradient, float).tolist()
+    out["inducing_inputs"] = np.asarray(m.Z.gradient, float).tolist()
+    return out
+
+
+def _objective(doc):
+    r = bound(doc)
+    return r["bound_without_kl"] - r["kl"]
+
+
 def gradient_fd(doc, rel_step=1e-6):
     """Central differences of this adapter's own log likelihood; independent of the analytic gradient."""
     from .params import wire_paths, perturbed
     out = {}
+    latent = doc.get("type") == "models.bayesian_gplvm"
     for path, val in wire_paths(doc):
+        if latent and isinstance(val, list) and val and isinstance(val[0], list):
+            g = []
+            for i, row in enumerate(val):
+                gr = []
+                for j, v in enumerate(row):
+                    h = 10 * rel_step * max(abs(v), 1.0)   # coordinates may be near zero: a relative step would be round-off limited
+                    gr.append((_objective(perturbed(doc, path, h, (i, j))) - _objective(perturbed(doc, path, -h, (i, j)))) / (2 * h))
+                g.append(gr)
+            out[path] = g
+            continue
         def ll(d):
-            return reference(d, doc["x-reference"]["Xnew"])["log_likelihood"]
+            return _objective(d) if latent else reference(d, doc["x-reference"]["Xnew"])["log_likelihood"]
         if isinstance(val, list):
             g = []
             for i, v in enumerate(val):
