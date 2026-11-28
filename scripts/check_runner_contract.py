@@ -73,4 +73,17 @@ if shutil.which("Rscript"):
     check("[r] runtime recorded in the result", "r" in extra and "stub" in extra)
 else:
     print("skip R runner check: Rscript not on PATH")
+
+julia = os.environ.get("JULIA", "julia")
+if shutil.which(julia):
+    ll = lambda n: repr(goldens[n]["x-reference"]["log_likelihood"])
+    os.environ.update(GPSCUDERIA_STUB_CRASH=ll(crash), GPSCUDERIA_STUB_RAISE=ll(raise_), GPSCUDERIA_STUB_REFUSE=ll(refuse))
+    extra = {}
+    runner = {"kind": "julia", "script": "julia/stub/runStub.jl"}
+    verify("julia", compare.launch("stub", runner, tasks, {}), exact=False)
+    clean = [t for t in tasks if t["name"] not in (crash, raise_, refuse)]
+    compare.launch("stub", runner, clean, extra)
+    check("[julia] runtime recorded in the result", "julia" in extra and "stub" in extra)
+else:
+    print("skip Julia runner check: julia not on PATH")
 sys.exit(1 if bad else 0)

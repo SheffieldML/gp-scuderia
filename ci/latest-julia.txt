@@ -1,0 +1,5 @@
+# Julia packages for the Julia runners, newest registered release (CIP-000A).
+JSON
+AbstractGPs
+KernelFunctions
+GaussianProcesses

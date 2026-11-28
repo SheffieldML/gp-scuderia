@@ -73,6 +73,13 @@ jobs:
           mkdir -p "$HOME/rlib"
           echo "R_LIBS_USER=$HOME/rlib" >> "$GITHUB_ENV"
           R_LIBS_USER="$HOME/rlib" Rscript R/install.R ${{ matrix.install }}
+      - if: matrix.kind == 'julia'
+        uses: julia-actions/setup-julia@v2
+        with: {version: "1.11"}
+      - if: matrix.kind == 'julia'
+        run: |
+          pip install numpy pyyaml jsonschema
+          julia --project=julia julia/install.jl ${{ matrix.install }}
       - if: matrix.kind == 'octave'
         run: |
           pip install numpy pyyaml jsonschema
@@ -81,6 +88,8 @@ jobs:
       - run: python scripts/compare.py ${{ matrix.framework }} --mode ${{ matrix.mode }} --json results/${{ matrix.framework }}-${{ matrix.mode }}.json
       - if: matrix.unsupported_check && matrix.kind == 'r'
         run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "outside the exact Gaussian slice is refused, not substituted" -- python scripts/check_r_refusals.py ${{ matrix.framework }}
+      - if: matrix.unsupported_check && matrix.kind == 'julia'
+        run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "outside the exact Gaussian slice is refused, not substituted" -- python scripts/check_julia_refusals.py ${{ matrix.framework }}
       - if: matrix.unsupported_check && matrix.kind == 'python'
         run: python scripts/record_check.py results/unsupported-${{ matrix.framework }}-${{ matrix.mode }}.json unsupported-${{ matrix.framework }} "dtc and pitc are refused, not substituted" -- python scripts/check_unsupported_approximations.py ${{ matrix.framework }}
       - uses: actions/download-artifact@v4
