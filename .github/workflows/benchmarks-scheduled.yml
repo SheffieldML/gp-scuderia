@@ -32,7 +32,7 @@ jobs:
 
   frameworks:
     needs: [matrix, generate]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.kind == 'r' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     timeout-minutes: 240
     continue-on-error: ${{ matrix.mode == 'latest' }}
     strategy:
@@ -48,13 +48,18 @@ jobs:
         uses: r-lib/actions/setup-r@v2
         with: {use-public-rspm: true}
       - if: matrix.kind == 'r'
+        id: rpkgs
+        # "package version" lines become pak refs "package@version"; bare names stay bare
         run: |
           pip install numpy pyyaml jsonschema
-          # CRAN has no binaries for this runner image, so packages build from source
-          sudo apt-get update && sudo apt-get install -y libuv1-dev libnlopt-dev cmake
-          mkdir -p "$HOME/rlib"
-          echo "R_LIBS_USER=$HOME/rlib" >> "$GITHUB_ENV"
-          R_LIBS_USER="$HOME/rlib" Rscript R/install.R ${{ matrix.install }}
+          refs=$(grep -v '^#' ${{ matrix.install }} | awk 'NF==2{print $1"@"$2} NF==1{print $1}' | paste -sd, -)
+          echo "refs=$refs" >> "$GITHUB_OUTPUT"
+      - if: matrix.kind == 'r'
+        # pak installs Posit Package Manager binaries (with their system libraries) and caches the library
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: ${{ steps.rpkgs.outputs.refs }}
+          cache-version: ${{ matrix.mode }}
       - if: matrix.kind == 'octave'
         run: |
           pip install numpy pyyaml jsonschema
